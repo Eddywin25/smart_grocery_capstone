@@ -1,0 +1,1 @@
+// Service for scanning barcodes of food items
