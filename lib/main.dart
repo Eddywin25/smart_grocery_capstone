@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+import 'firebase_options.dart';
+
+// async to connect to Firebase
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // detects device and initializes Firebase connection using matching keys from
+  // firebase_options.dart
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('✅ Firebase initialized successfully!');
   runApp(const MyApp());
 }
 
