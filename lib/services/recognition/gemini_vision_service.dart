@@ -82,7 +82,7 @@ class GeminiVisionService {
           '⚠️ GeminiVisionService attempt ${attempt + 1} ($modelName) failed: $e',
         );
         if (attempt == _fallbackModels.length - 1) rethrow;
-        await Future.delayed(const Duration(milliseconds: 1500));
+        await Future.delayed(Duration(milliseconds: 1500 * (attempt + 1)));
       }
     }
     throw StateError('Unreachable');

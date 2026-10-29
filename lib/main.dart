@@ -26,7 +26,7 @@ Future<void> main() async {
         ? const AppleDebugProvider()
         : const AppleAppAttestProvider(),
     providerWeb: kDebugMode
-        ? WebDebugProvider(debugToken: '562d7c73-bb4c-4462-a4e3-e1b39b639448')
+        ? WebDebugProvider()
         : ReCaptchaV3Provider('debug-placeholder-site-key'),
   );
   debugPrint('🛡️ Firebase App Check activated!');
