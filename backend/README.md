@@ -42,6 +42,13 @@ pytest          # prints "13 passed"
 ruff check .    # prints "All checks passed!"
 ```
 
+## CI
+
+GitHub runs these checks on every push:
+
+- **backend**: the tests and lint above, plus `python seed.py --dry-run`
+- **flutter**: `flutter analyze` and `flutter test` (only the default demo test for now)
+
 ## Run the app
 
 ```bash

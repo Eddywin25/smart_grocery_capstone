@@ -2,6 +2,11 @@
 service-account*.json
 *-firebase-adminsdk-*.json
 
+# Local files created by tools; rebuilt automatically, so don't commit them:
+#   .venv/          Python virtual environment (from `python3 -m venv .venv`)
+#   __pycache__/    compiled Python files, made when Python runs a script
+#   .pytest_cache/  pytest's record of the last test run
+#   .ruff_cache/    ruff (the linter, `ruff check .`) cache of already-checked files
 .venv/
 __pycache__/
 .pytest_cache/

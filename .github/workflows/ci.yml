@@ -15,6 +15,8 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
+      # TODO: test/widget_test.dart is the default counter demo and will fail once the
+      # real app screens merge. Remove or replace it with real tests then.
       - run: flutter test
 
   backend:
