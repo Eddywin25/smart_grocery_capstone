@@ -1,26 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'ui/styles/app_style.dart';
-import 'ui/screens/home_screen.dart';
-import 'package:go_router/go_router.dart';
-
-
-
-final _router = GoRouter(
-  routes: [
-    GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
-  ],
-);
-
+import 'shared/routing/router.dart';  // Custom navigation/routes
 
 void main() {
-  runApp(
-    ProviderScope(  // Initialized for Riverpod state management/providers
-      child: MaterialApp.router(
-        routerConfig: _router,
-        theme: AppStyle.base,
-        title: 'Smart Grocery Housekeeping',
-      ),
-    ),
-  );
+  runApp(const ProviderScope(
+    child: MyApp(),
+  ));
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  // Widget at root of application
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(routerConfig: router, // Uses go_router for navigation
+    );
+  }
 }

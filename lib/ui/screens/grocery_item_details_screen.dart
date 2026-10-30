@@ -1,1 +1,0 @@
-// Screen with detail on specific grocery item

@@ -1,1 +1,0 @@
-// Screen for grocery list summary
