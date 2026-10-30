@@ -16,8 +16,8 @@ pip install -r requirements.txt -r requirements-dev.txt  # installs firebase-adm
 Save your Firebase service account key as `backend/service-account.json` (never commit it).
 
 ```bash
-python seed.py --dry-run   # prints "25 produce items valid (dry run, nothing uploaded)"
-python seed.py             # prints "Uploaded 25 items to the 'produce' collection"
+python seed.py --dry-run   # prints "31 produce items valid (dry run, nothing uploaded)"
+python seed.py             # prints "Uploaded 31 items to the 'produce' collection"
 ```
 
 After seeding, the `produce` collection shows up in the Firebase console under Firestore Database.
@@ -38,7 +38,7 @@ The rules then show up in the Firebase console under Firestore Database → Rule
 ## Test
 
 ```bash
-pytest          # prints "9 passed"
+pytest          # prints "13 passed"
 ruff check .    # prints "All checks passed!"
 ```
 
