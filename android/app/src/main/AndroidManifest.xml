@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Required for mobile_scanner and produce camera capture -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <application
         android:label="smart_grocery"
         android:name="${applicationName}"

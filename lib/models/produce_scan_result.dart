@@ -26,7 +26,7 @@ class ProduceScanResult {
     this.needsReview = false,
   });
 
-  /// Fake data so the UI (Person C) can be built before recognition works.
+  /// Fake data so the UI can be built before recognition works.
   static const sample = ProduceScanResult(
     itemName: 'Banana',
     category: 'Fruit',

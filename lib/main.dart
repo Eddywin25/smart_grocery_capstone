@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_ai/firebase_ai.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
+import 'services/recognition/barcode_scanner_service.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -92,6 +94,40 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
     }
   }
 
+  Future<void> _openBarcodeScanner() async {
+    final scannerService = BarcodeScannerService();
+
+    final String? scannedBarcode = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text('Point at a Barcode')),
+          body: MobileScanner(
+            controller: scannerService.controller,
+            onDetect: (capture) {
+              final code = scannerService.processBarcodeCapture(capture);
+              if (code != null) {
+                // We got a clean, debounced barcode! Close camera & return it.
+                Navigator.of(context).pop(code);
+              }
+            },
+          ),
+        ),
+      ),
+    );
+
+    // Clean up the camera controller when the screen closes
+    scannerService.dispose();
+
+    if (scannedBarcode != null) {
+      setState(() {
+        _aiResponse =
+            '📦 Barcode Scanned Successfully!\n\n'
+            'Raw Code: $scannedBarcode\n'
+            'Next Step: Send "$scannedBarcode" to Person D\'s lookup service.';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,6 +177,12 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
                 label: Text(
                   _isLoading ? 'Asking Gemini...' : 'Run "Hello Gemini" Test',
                 ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _openBarcodeScanner,
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Test Live Barcode Scanner'),
               ),
             ],
           ),
