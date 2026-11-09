@@ -29,7 +29,6 @@ Run from the repo root:
 ```bash
 npm install -g firebase-tools           # installs the firebase command
 firebase login                          # opens a browser to sign in with Google
-firebase use --add                      # pick the team's Firebase project
 firebase deploy --only firestore:rules  # prints "Deploy complete!"
 ```
 

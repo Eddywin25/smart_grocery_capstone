@@ -5,7 +5,8 @@ The fields are described in SCHEMA.md. seed.py runs these checks on data/produce
 before uploading, and the tests in tests/test_produce_data.py make sure the checks work.
 """
 
-# Allowed values (these match the Flutter app's models)
+# Allowed values (these match the Flutter app's models, except "counter",
+# which still needs adding to StorageLocation in the app)
 CATEGORIES = ["Fruit", "Vegetable", "Herb", "Other"]
 LOCATIONS = ["fridge", "freezer", "pantry", "counter"]
 
