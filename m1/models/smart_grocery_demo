@@ -1,0 +1,322 @@
+
+"""
+Smart Grocery Housekeeping
+Machine Learning Classification and Inventory Demo
+
+Author: Nikoloz Shashkini
+Model: MobileNetV2 TensorFlow Lite
+Classes: 25 grocery categories
+
+Purpose:
+Classify grocery images, maintain inventory,
+identify low-stock items, and generate shopping lists.
+"""
+
+import os
+import json
+import numpy as np
+import tensorflow as tf
+
+from datetime import datetime
+
+
+# 1. CONFIGURATION
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "smart_grocery_model_25_float16.tflite"
+)
+
+LABELS_PATH = os.path.join(
+    BASE_DIR,
+    "grocery_labels_25.json"
+)
+
+IMAGE_PATH = os.path.join(
+    BASE_DIR,
+    "sample_grocery.jpg"
+)
+
+CONFIDENCE_THRESHOLD = 0.60
+LOW_STOCK_THRESHOLD = 2
+
+IMAGE_SIZE = (224, 224)
+
+
+# 2. Grocery Inventory Class
+
+class GroceryInventory:
+
+    def __init__(self):
+        self.items = {}
+
+    def add_item(self, name, quantity=1):
+
+        if name in self.items:
+            self.items[name]["quantity"] += quantity
+            print(f"Updated {name} quantity.")
+
+        else:
+            self.items[name] = {
+                "quantity": quantity,
+                "date_added": datetime.now().strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            }
+
+            print(f"Added {name} to inventory.")
+
+    def remove_item(self, name, quantity=1):
+
+        if name not in self.items:
+            print(f"{name} not found.")
+            return
+
+        self.items[name]["quantity"] -= quantity
+
+        if self.items[name]["quantity"] <= 0:
+            del self.items[name]
+            print(f"{name} removed from inventory.")
+
+    def display_inventory(self):
+
+        print("\nGROCERY INVENTORY")
+
+        if not self.items:
+            print("Inventory is empty.")
+            return
+
+        for name, details in self.items.items():
+            print(
+                f"{name}: {details['quantity']} units"
+            )
+
+    def get_low_stock(self):
+
+        return [
+            name
+            for name, details in self.items.items()
+            if details["quantity"] <= LOW_STOCK_THRESHOLD
+        ]
+
+    def generate_shopping_list(self):
+
+        shopping_list = self.get_low_stock()
+
+        print("\nSHOPPING LIST")
+
+        if not shopping_list:
+            print("No items need restocking.")
+            return
+
+        for item in shopping_list:
+            print(f"[ ] {item}")
+
+
+# 3. Machine Learning Classifier
+
+class GroceryClassifier:
+
+    def __init__(self, model_path, labels_path):
+
+        print("\nLoading grocery ML model...")
+
+        if not os.path.isfile(model_path):
+            raise FileNotFoundError(
+                f"Model not found: {model_path}"
+            )
+
+        if not os.path.isfile(labels_path):
+            raise FileNotFoundError(
+                f"Labels not found: {labels_path}"
+            )
+
+        self.interpreter = tf.lite.Interpreter(
+            model_path=model_path
+        )
+
+        self.interpreter.allocate_tensors()
+
+        self.input_details = (
+            self.interpreter.get_input_details()
+        )
+
+        self.output_details = (
+            self.interpreter.get_output_details()
+        )
+
+        with open(labels_path, "r") as file:
+            labels = json.load(file)
+
+        self.class_names = [
+            labels[str(i)]
+            for i in range(len(labels))
+        ]
+
+        if len(self.class_names) != 25:
+            raise ValueError(
+                f"Expected 25 labels, found {len(self.class_names)}"
+            )
+
+        print("Grocery ML model loaded successfully!")
+        print("Number of classes:", len(self.class_names))
+
+    def preprocess_image(self, image_path):
+
+        if not os.path.isfile(image_path):
+            raise FileNotFoundError(image_path)
+
+        image = tf.io.read_file(image_path)
+
+        image = tf.image.decode_image(
+            image,
+            channels=3,
+            expand_animations=False
+        )
+
+        image = tf.image.resize(
+            image,
+            IMAGE_SIZE
+        )
+
+        image = tf.cast(image, tf.float32)
+
+        # MobileNetV2 normalization
+        image = tf.keras.applications.mobilenet_v2.preprocess_input(
+            image
+        )
+
+        image = tf.expand_dims(image, axis=0)
+
+        return image.numpy()
+
+    def predict(self, image_path):
+
+        image = self.preprocess_image(image_path)
+
+        input_index = self.input_details[0]["index"]
+        output_index = self.output_details[0]["index"]
+
+        self.interpreter.set_tensor(
+            input_index,
+            image.astype(self.input_details[0]["dtype"])
+        )
+
+        self.interpreter.invoke()
+
+        predictions = self.interpreter.get_tensor(
+            output_index
+        )[0]
+
+        predicted_index = int(
+            np.argmax(predictions)
+        )
+
+        confidence = float(
+            predictions[predicted_index]
+        )
+
+        predicted_class = self.class_names[
+            predicted_index
+        ]
+
+        # Reject uncertain predictions
+        if confidence < CONFIDENCE_THRESHOLD:
+
+            return {
+                "class": "Unknown",
+                "confidence": confidence,
+                "accepted": False
+            }
+
+        return {
+            "class": predicted_class,
+            "confidence": confidence,
+            "accepted": True
+        }
+
+
+# 4. Smart Grocery Application
+
+class SmartGroceryApp:
+
+    def __init__(self):
+
+        self.inventory = GroceryInventory()
+
+        print("\nChecking model files...")
+        print("Model exists:", os.path.isfile(MODEL_PATH))
+        print("Labels exist:", os.path.isfile(LABELS_PATH))
+
+        self.classifier = GroceryClassifier(
+            MODEL_PATH,
+            LABELS_PATH
+        )
+
+    def scan_grocery(self, image_path):
+
+        print("\nScanning grocery image...")
+
+        result = self.classifier.predict(image_path)
+
+        print("\nCLASSIFICATION RESULT")
+
+        print("Product:", result["class"])
+
+        print(
+            "Confidence:",
+            f"{result['confidence']:.2%}"
+        )
+
+        if result["accepted"]:
+
+            self.inventory.add_item(
+                result["class"]
+            )
+
+        else:
+            print(
+                "Low confidence: manual verification required."
+            )
+
+        return result
+
+    def run_inventory_report(self):
+
+        self.inventory.display_inventory()
+
+        self.inventory.generate_shopping_list()
+
+
+# 5. Demo
+
+def main():
+
+    print("Smart Grocery Housekeeping")
+    print("Machine Learning Demo")
+
+    app = SmartGroceryApp()
+
+    # Example inventory operations
+    app.inventory.add_item("Apple", 3)
+    app.inventory.add_item("Banana", 1)
+    app.inventory.add_item("Milk", 2)
+
+    # Example image classification
+    if os.path.isfile(IMAGE_PATH):
+
+        app.scan_grocery(IMAGE_PATH)
+
+    else:
+
+        print("\nNo sample image found.")
+        print("Image scanning skipped.")
+
+    # Display final inventory
+    app.run_inventory_report()
+
+
+if __name__ == "__main__":
+    main()
