@@ -1,0 +1,43 @@
+// =============================================================================
+// Firestore security rules
+//
+// The app talks to Firestore straight from each user's phone, so these rules
+// decide who can read and write each part of the database.
+//
+// When it runs:
+//   - Firebase checks these rules on its servers every time the app reads or
+//     writes the database. If no rule allows the request, it's blocked.
+//   - Editing this file does nothing on its own. Changes only take effect after
+//     you deploy them with: firebase deploy --only firestore:rules
+//   - seed.py uses the admin key, which skips these rules entirely.
+// =============================================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Rule 1: produce list (fruits and vegetables, by PLU)
+    // Signed-in users can read it. Nobody can change it from the app;
+    // only seed.py can.
+    match /produce/{plu} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Rule 2: barcode products (packaged items, by barcode)
+    // Signed-in users can read it. Nobody can change it from the app;
+    // only the backend can.
+    match /products/{barcode} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Rule 3: each user's own data (their inventory, etc.)
+    // A user can read and write only their own folder, never anyone else's.
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+  }
+}
