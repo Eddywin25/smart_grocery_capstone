@@ -1,7 +1,4 @@
 import 'package:flutter/services.dart' show rootBundle;
-
-import 'services/recognition/gemini_vision_service.dart';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,7 +6,11 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import 'services/recognition/gemini_vision_service.dart';
+import 'services/recognition/edge_ml_service.dart';
 import 'services/recognition/barcode_scanner_service.dart';
+import 'services/recognition/recognition_coordinator.dart';
+
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -86,6 +87,66 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
     } catch (e) {
       setState(() {
         _aiResponse = 'Error calling GeminiVisionService:\n$e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  final _edgeMlService = EdgeMlService();
+
+  Future<void> _testEdgeMlPipeline() async {
+    setState(() {
+      _isLoading = true;
+      _aiResponse = 'Running local .tflite model in background Isolate...';
+    });
+
+    try {
+      final byteData = await rootBundle.load('assets/test_banana.jpg');
+      final imageBytes = byteData.buffer.asUint8List();
+
+      final result = await _edgeMlService.classifyProduceImage(imageBytes);
+
+      setState(() {
+        _aiResponse = result.toPrettyJson();
+      });
+    } catch (e) {
+      setState(() {
+        _aiResponse = 'Error running EdgeMlService:\n$e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  final _coordinator = RecognitionCoordinator();
+  bool _requireRipeness = false;
+
+  Future<void> _testHybridCoordinator() async {
+    setState(() {
+      _isLoading = true;
+      _aiResponse = 'Running Hybrid RecognitionCoordinator...';
+    });
+
+    try {
+      final byteData = await rootBundle.load('assets/test_banana.jpg');
+      final imageBytes = byteData.buffer.asUint8List();
+
+      final result = await _coordinator.scanProduce(
+        imageBytes,
+        requireRipeness: _requireRipeness,
+      );
+
+      setState(() {
+        _aiResponse = result.toPrettyJson();
+      });
+    } catch (e) {
+      setState(() {
+        _aiResponse = 'Error in RecognitionCoordinator:\n$e';
       });
     } finally {
       setState(() {
@@ -177,6 +238,32 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
                 label: Text(
                   _isLoading ? 'Asking Gemini...' : 'Run "Hello Gemini" Test',
                 ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                onPressed: _isLoading ? null : _testEdgeMlPipeline,
+                icon: const Icon(Icons.memory),
+                label: const Text('Test Local Edge ML (.tflite)'),
+              ),
+              SwitchListTile(
+                title: const Text(
+                  'Require Ripeness / Spoilage Days',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Escalates from Edge ML to Gemini Cloud',
+                  style: TextStyle(fontSize: 12),
+                ),
+                value: _requireRipeness,
+                onChanged: _isLoading
+                    ? null
+                    : (val) => setState(() => _requireRipeness = val),
+              ),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: _isLoading ? null : _testHybridCoordinator,
+                icon: const Icon(Icons.hub),
+                label: const Text('Test Hybrid Coordinator (Auto-Route)'),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
