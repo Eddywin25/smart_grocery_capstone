@@ -1,0 +1,11 @@
+# Settings for the backend's Python tools. pytest and ruff read this file automatically
+# when you run them from backend/, so you don't have to pass these options every time.
+
+# pytest (runs the tests)
+[tool.pytest.ini_options]
+pythonpath = ["."]     # lets tests import schema_check.py and seed.py from this folder
+testpaths = ["tests"]  # where to look for test files
+
+# ruff (the linter)
+[tool.ruff]
+line-length = 100      # flag lines longer than 100 characters
