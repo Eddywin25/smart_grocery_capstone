@@ -1,36 +1,36 @@
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:firebase_ai/firebase_ai.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import 'services/recognition/gemini_vision_service.dart';
-import 'services/recognition/edge_ml_service.dart';
-import 'services/recognition/barcode_scanner_service.dart';
-import 'services/recognition/recognition_coordinator.dart';
-
 import 'firebase_options.dart';
+import 'services/recognition/barcode_scanner_service.dart';
+import 'services/recognition/edge_ml_service.dart';
+import 'services/recognition/gemini_vision_service.dart';
+import 'services/recognition/recognition_coordinator.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Initialize Firebase Core
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   debugPrint('✅ Firebase Core initialized!');
 
-  // 2. Activate Firebase App Check (using v0.5.x parameter names)
+  // todo (milestone-3): Replace web ReCaptchaV3Provider key via
+  // String.fromEnvironment before production web release.
   await FirebaseAppCheck.instance.activate(
     providerAndroid: kDebugMode
         ? const AndroidDebugProvider()
         : const AndroidPlayIntegrityProvider(),
-    providerApple: kDebugMode
-        ? const AppleDebugProvider()
-        : const AppleAppAttestProvider(),
     providerWeb: kDebugMode
         ? WebDebugProvider()
-        : ReCaptchaV3Provider('debug-placeholder-site-key'),
+        : ReCaptchaV3Provider(
+            const String.fromEnvironment(
+              'RECAPTCHA_V3_SITE_KEY',
+              defaultValue: 'debug-placeholder-site-key',
+            ),
+          ),
   );
   debugPrint('🛡️ Firebase App Check activated!');
 
@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Grocery Capstone',
+      title: 'Smart Grocery POC',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
@@ -61,41 +61,46 @@ class GeminiPocScreen extends StatefulWidget {
 }
 
 class _GeminiPocScreenState extends State<GeminiPocScreen> {
-  String _aiResponse =
-      'Press the button below to test Firebase AI Logic (Gemini).';
-  bool _isLoading = false;
+  final _visionService = GeminiVisionService();
+  final _edgeMlService = EdgeMlService();
+  late final _coordinator = RecognitionCoordinator(
+    edgeMlService: _edgeMlService,
+    geminiService: _visionService,
+  );
 
-  final _geminiService = GeminiVisionService();
+  String _aiResponse = 'Select a recognition pipeline below to test.';
+  bool _isLoading = false;
+  bool _requireRipeness = false;
 
   Future<void> _testGeminiPipeline() async {
     setState(() {
       _isLoading = true;
-      _aiResponse = 'Loading assets/test_banana.jpg & sending to Gemini...';
+      _aiResponse = 'Analyzing test_banana.jpg with Gemini Cloud...';
     });
 
     try {
-      // 1. Load the actual image bytes from Flutter assets
       final byteData = await rootBundle.load('assets/test_banana.jpg');
       final imageBytes = byteData.buffer.asUint8List();
 
-      // 2. Call our production-ready GeminiVisionService
-      final result = await _geminiService.analyzeProduceImage(imageBytes);
+      final result = await _visionService.analyzeProduceImage(imageBytes);
+      if (!mounted) return;
 
       setState(() {
         _aiResponse = result.toPrettyJson();
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _aiResponse = 'Error calling GeminiVisionService:\n$e';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-
-  final _edgeMlService = EdgeMlService();
 
   Future<void> _testEdgeMlPipeline() async {
     setState(() {
@@ -108,23 +113,24 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
       final imageBytes = byteData.buffer.asUint8List();
 
       final result = await _edgeMlService.classifyProduceImage(imageBytes);
+      if (!mounted) return;
 
       setState(() {
         _aiResponse = result.toPrettyJson();
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _aiResponse = 'Error running EdgeMlService:\n$e';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-
-  final _coordinator = RecognitionCoordinator();
-  bool _requireRipeness = false;
 
   Future<void> _testHybridCoordinator() async {
     setState(() {
@@ -140,18 +146,22 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
         imageBytes,
         requireRipeness: _requireRipeness,
       );
+      if (!mounted) return;
 
       setState(() {
         _aiResponse = result.toPrettyJson();
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _aiResponse = 'Error in RecognitionCoordinator:\n$e';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -167,7 +177,6 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
             onDetect: (capture) {
               final code = scannerService.processBarcodeCapture(capture);
               if (code != null) {
-                // We got a clean, debounced barcode! Close camera & return it.
                 Navigator.of(context).pop(code);
               }
             },
@@ -176,8 +185,8 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
       ),
     );
 
-    // Clean up the camera controller when the screen closes
     scannerService.dispose();
+    if (!mounted) return;
 
     if (scannedBarcode != null) {
       setState(() {
@@ -190,25 +199,32 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
   }
 
   @override
+  void dispose() {
+    _coordinator.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text('Smart Grocery: Vision & Edge ML POC'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Smart Grocery: Gemini POC'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.eco, size: 64, color: Colors.green),
-              const SizedBox(height: 16),
+              const Icon(Icons.eco, size: 56, color: Colors.green),
+              const SizedBox(height: 12),
               const Text(
-                'Milestone 1: Cloud AI Pipeline Test',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                'Milestone 1 & 2: Hybrid Recognition Pipeline',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -219,32 +235,10 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
                 ),
                 child: SelectableText(
                   _aiResponse,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
                 ),
               ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _isLoading ? null : _testGeminiPipeline,
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.auto_awesome),
-                label: Text(
-                  _isLoading ? 'Asking Gemini...' : 'Run "Hello Gemini" Test',
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.tonalIcon(
-                onPressed: _isLoading ? null : _testEdgeMlPipeline,
-                icon: const Icon(Icons.memory),
-                label: const Text('Test Local Edge ML (.tflite)'),
-              ),
+              const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text(
                   'Require Ripeness / Spoilage Days',
@@ -262,12 +256,33 @@ class _GeminiPocScreenState extends State<GeminiPocScreen> {
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: _isLoading ? null : _testHybridCoordinator,
-                icon: const Icon(Icons.hub),
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.hub),
                 label: const Text('Test Hybrid Coordinator (Auto-Route)'),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              FilledButton.tonalIcon(
+                onPressed: _isLoading ? null : _testEdgeMlPipeline,
+                icon: const Icon(Icons.memory),
+                label: const Text('Test Local Edge ML (.tflite)'),
+              ),
+              const SizedBox(height: 10),
               OutlinedButton.icon(
-                onPressed: _openBarcodeScanner,
+                onPressed: _isLoading ? null : _testGeminiPipeline,
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('Test Gemini Cloud Directly'),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _isLoading ? null : _openBarcodeScanner,
                 icon: const Icon(Icons.qr_code_scanner),
                 label: const Text('Test Live Barcode Scanner'),
               ),

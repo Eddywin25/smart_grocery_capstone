@@ -1,5 +1,4 @@
 import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -13,14 +12,70 @@ class EdgeMlService {
   static const String _labelsPath = 'assets/models/labels.txt';
   static const int _inputSize = 224;
 
+  /// Exact lowercase produce labels mapped to canonical backend schema (mlLabel) names.
+  /// Prevents substring false positives (like 'ear' matching 'bearskin' or 'hip' matching 'airship')
+  /// while normalizing ImageNet labels (like 'Granny Smith' -> 'Apple') for backend compatibility.
+  static const Map<String, String> _canonicalProduceMap = {
+    // Baseline MobileNet v1 ImageNet produce classes
+    'banana': 'Banana',
+    'granny smith': 'Apple',
+    'strawberry': 'Strawberry',
+    'orange': 'Orange',
+    'lemon': 'Lemon',
+    'fig': 'Fig',
+    'pineapple': 'Pineapple',
+    'jackfruit': 'Jackfruit',
+    'custard apple': 'Custard Apple',
+    'pomegranate': 'Pomegranate',
+    'broccoli': 'Broccoli',
+    'cauliflower': 'Cauliflower',
+    'head cabbage': 'Cabbage',
+    'zucchini': 'Zucchini',
+    'spaghetti squash': 'Squash',
+    'acorn squash': 'Squash',
+    'butternut squash': 'Squash',
+    'cucumber': 'Cucumber',
+    'artichoke': 'Artichoke',
+    'bell pepper': 'Pepper',
+    'cardoon': 'Cardoon',
+    'mushroom': 'Mushroom',
+    'corn': 'Corn',
+    // Additional canonical 25-class backend schema labels
+    'apple': 'Apple',
+    'avocado': 'Avocado',
+    'beans': 'Beans',
+    'blueberries': 'Blueberries',
+    'cabbage': 'Cabbage',
+    'carrots': 'Carrots',
+    'carrot': 'Carrots',
+    'garlic': 'Garlic',
+    'ginger': 'Ginger',
+    'grapes': 'Grapes',
+    'kiwi': 'Kiwi',
+    'lime': 'Lime',
+    'mango': 'Mango',
+    'onion': 'Onion',
+    'peach': 'Peach',
+    'pear': 'Pear',
+    'peas': 'Peas',
+    'pepper': 'Pepper',
+    'plum': 'Plum',
+    'potato': 'Potato',
+    'raspberries': 'Raspberries',
+    'spinach': 'Spinach',
+    'tomato': 'Tomato',
+    'watermelon': 'Watermelon',
+  };
+
   Interpreter? _interpreter;
   List<String> _labels = [];
-  bool _isInitialized = false;
+  Future<void>? _initFuture;
 
   /// Loads the TFLite interpreter and label map into memory once.
-  Future<void> initialize() async {
-    if (_isInitialized) return;
+  /// Caches [_initFuture] to prevent concurrent callers from allocating duplicate interpreters.
+  Future<void> initialize() => _initFuture ??= _doInitialize();
 
+  Future<void> _doInitialize() async {
     try {
       _interpreter = await Interpreter.fromAsset(_modelPath);
       final rawLabels = await rootBundle.loadString(_labelsPath);
@@ -30,14 +85,19 @@ class EdgeMlService {
           .where((line) => line.isNotEmpty)
           .toList();
 
-      _isInitialized = true;
       debugPrint(
         '⚡ EdgeMlService initialized: ${_labels.length} labels loaded.',
       );
     } catch (e) {
+      _initFuture = null; // Reset so future attempts can retry
       debugPrint('❌ Failed to initialize EdgeMlService: $e');
       rethrow;
     }
+  }
+
+  bool _isProduceLabel(String label) {
+    final normalized = label.toLowerCase().trim();
+    return _canonicalProduceMap.containsKey(normalized);
   }
 
   /// Runs local on-device inference using a background Isolate for image resizing.
@@ -45,9 +105,7 @@ class EdgeMlService {
     Uint8List rawImageBytes, {
     double confidenceThreshold = 0.75,
   }) async {
-    if (!_isInitialized) {
-      await initialize();
-    }
+    await initialize();
 
     final interpreter = _interpreter!;
     final inputTensor = interpreter.getInputTensor(0);
@@ -68,7 +126,6 @@ class EdgeMlService {
     if (outputTensor.type == TensorType.uint8) {
       final outputBuffer = [List<int>.filled(numClasses, 0)];
       interpreter.run(inputMatrix, outputBuffer);
-      // Quantized uint8 outputs range from 0..255
       probabilities = outputBuffer[0].map((v) => v / 255.0).toList();
     } else {
       final outputBuffer = [List<double>.filled(numClasses, 0.0)];
@@ -82,10 +139,17 @@ class EdgeMlService {
       '(Isolate preprocess: ${preprocessMs}ms)',
     );
 
-    // 3. Sort indices by highest probability
+    // 3. Filter indices to valid produce classes; if using a custom produce-only
+    //    model whose labels aren't in the static map, fall back to all output indices.
     final produceIndices = <int>[];
     for (int i = 0; i < probabilities.length; i++) {
       if (_isProduceLabel(_getLabelAt(i))) {
+        produceIndices.add(i);
+      }
+    }
+
+    if (produceIndices.isEmpty) {
+      for (int i = 0; i < probabilities.length; i++) {
         produceIndices.add(i);
       }
     }
@@ -96,20 +160,20 @@ class EdgeMlService {
     final topConfidence = probabilities[topIndex];
     final topLabel = _formatLabel(_getLabelAt(topIndex));
 
-    // Only include runner-ups that actually registered > 0 probability;
-    // otherwise provide sensible fallback produce options.
     final runnerUps = produceIndices
         .skip(1)
         .where((idx) => probabilities[idx] > 0.0)
         .take(2)
         .map((idx) => _formatLabel(_getLabelAt(idx)))
+        .toSet()
+        .where((label) => label != topLabel)
         .toList();
 
     if (runnerUps.isEmpty) {
       runnerUps.addAll(
         topLabel.toLowerCase().contains('banana')
             ? ['Plantain', 'Lemon']
-            : ['Banana', 'Granny Smith'],
+            : ['Banana', 'Apple'],
       );
     }
 
@@ -118,7 +182,7 @@ class EdgeMlService {
       category: _inferCategory(topLabel),
       confidence: double.parse(topConfidence.toStringAsFixed(3)),
       source: ScanSource.edgeMl,
-      ripeness: null, // Local classifier only identifies item; Gemini estimates ripeness
+      ripeness: null,
       estDaysUntilSpoil: null,
       alternatives: runnerUps,
       needsReview: topConfidence < confidenceThreshold,
@@ -133,8 +197,11 @@ class EdgeMlService {
   }
 
   String _formatLabel(String raw) {
-    if (raw.isEmpty) return 'Unknown Item';
-    return raw
+    final clean = raw.trim();
+    if (clean.isEmpty) return 'Unknown Item';
+    final canonical = _canonicalProduceMap[clean.toLowerCase()];
+    if (canonical != null) return canonical;
+    return clean
         .split(' ')
         .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
         .join(' ');
@@ -155,6 +222,13 @@ class EdgeMlService {
       'mushroom',
       'potato',
       'carrot',
+      'onion',
+      'garlic',
+      'ginger',
+      'spinach',
+      'peas',
+      'beans',
+      'corn',
     ];
     for (final v in veggies) {
       if (lower.contains(v)) return 'Vegetable';
@@ -162,48 +236,14 @@ class EdgeMlService {
     return 'Fruit';
   }
 
-  static const List<String> _produceKeywords = [
-    'banana',
-    'granny smith',
-    'strawberry',
-    'orange',
-    'lemon',
-    'fig',
-    'pineapple',
-    'jackfruit',
-    'custard apple',
-    'pomegranate',
-    'broccoli',
-    'cauliflower',
-    'cabbage',
-    'zucchini',
-    'squash',
-    'cucumber',
-    'artichoke',
-    'bell pepper',
-    'cardoon',
-    'mushroom',
-    'corn',
-    'ear',
-    'acorn',
-    'hip',
-  ];
-
-  bool _isProduceLabel(String label) {
-    final lower = label.toLowerCase();
-    return _produceKeywords.any((k) => lower.contains(k));
-  }
-
   void dispose() {
     _interpreter?.close();
     _interpreter = null;
-    _isInitialized = false;
+    _initFuture = null;
   }
 }
 
-/// Top-level / static function executed inside the background Dart Isolate.
-/// Decodes JPEG/PNG bytes, center-crops and resizes to 224x224, and builds a
-/// 4D tensor [1, 224, 224, 3].
+/// Top-level function executed inside the background Dart Isolate.
 List<List<List<List<num>>>> _preprocessImageInIsolate(
   Uint8List rawBytes,
   int targetSize,
@@ -214,7 +254,6 @@ List<List<List<List<num>>>> _preprocessImageInIsolate(
     throw Exception('Failed to decode image bytes inside background Isolate.');
   }
 
-  // Resize and center-crop to 224x224 square
   final resized = img.copyResizeCropSquare(decoded, size: targetSize);
 
   return [
@@ -225,7 +264,6 @@ List<List<List<List<num>>>> _preprocessImageInIsolate(
         if (isQuantized) {
           return <int>[pixel.r.toInt(), pixel.g.toInt(), pixel.b.toInt()];
         } else {
-          // Standard float32 normalization (-1.0 to 1.0)
           return <double>[
             (pixel.r - 127.5) / 127.5,
             (pixel.g - 127.5) / 127.5,

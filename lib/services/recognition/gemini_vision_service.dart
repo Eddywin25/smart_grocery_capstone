@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
@@ -49,6 +48,8 @@ Identify the specific fruit, vegetable, or herb, estimate its visual ripeness an
 and provide 2 reasonable alternative produce names in case of ambiguity.
 ''';
 
+  late final GenerativeModel _model = _buildModel();
+
   GenerativeModel _buildModel() {
     return FirebaseAI.googleAI().generativeModel(
       model: _modelName,
@@ -67,23 +68,21 @@ and provide 2 reasonable alternative produce names in case of ambiguity.
   }) async {
     // 1. Compress/resize large images in a background Isolate so upload & cloud
     //    token processing finish in ~2-4 seconds instead of timing out.
-    final optimizedBytes = await Isolate.run(
-      () => _compressForCloudInIsolate(imageBytes),
+    final payload = await Isolate.run(
+      () => _compressForCloudInIsolate(imageBytes, mimeType),
     );
     debugPrint(
-      '☁️ Uploading image to Gemini (${(optimizedBytes.lengthInBytes / 1024).toStringAsFixed(1)} KB)...',
+      '☁️ Uploading image to Gemini (${(payload.bytes.lengthInBytes / 1024).toStringAsFixed(1)} KB)...',
     );
-
-    final model = _buildModel();
 
     for (int attempt = 1; attempt <= _maxRetriesOnServerError; attempt++) {
       try {
         final stopwatch = Stopwatch()..start();
 
-        final response = await model
+        final response = await _model
             .generateContent([
               Content.multi([
-                InlineDataPart('image/jpeg', optimizedBytes),
+                InlineDataPart(payload.mimeType, payload.bytes),
                 const TextPart(_systemPrompt),
               ]),
             ])
@@ -109,13 +108,11 @@ and provide 2 reasonable alternative produce names in case of ambiguity.
         final Map<String, dynamic> decoded =
             jsonDecode(rawText) as Map<String, dynamic>;
 
-        final double confidence =
-            (decoded['confidence'] as num?)?.toDouble() ?? 0.0;
-
-        decoded['source'] = ScanSource.geminiCloud.name;
-        decoded['needsReview'] = confidence < reviewThreshold;
-
-        return ProduceScanResult.fromJson(decoded);
+        return ProduceScanResult.fromJson(
+          decoded,
+          source: ScanSource.geminiCloud,
+          confidenceThreshold: reviewThreshold,
+        );
       } catch (e) {
         final errorStr = e.toString();
         debugPrint(
@@ -146,11 +143,22 @@ and provide 2 reasonable alternative produce names in case of ambiguity.
   }
 }
 
+class _CompressedPayload {
+  final Uint8List bytes;
+  final String mimeType;
+  const _CompressedPayload(this.bytes, this.mimeType);
+}
+
 /// Resizes images larger than 512px down to 512px JPEG (quality 80) in a background Isolate.
-/// Keeps payload around ~20-40KB for fast mobile uploads and faster Gemini vision encoding.
-Uint8List _compressForCloudInIsolate(Uint8List rawBytes) {
+/// Preserves the original bytes and mimeType if decoding fails.
+_CompressedPayload _compressForCloudInIsolate(
+  Uint8List rawBytes,
+  String fallbackMimeType,
+) {
   final decoded = img.decodeImage(rawBytes);
-  if (decoded == null) return rawBytes;
+  if (decoded == null) {
+    return _CompressedPayload(rawBytes, fallbackMimeType);
+  }
 
   final resized = (decoded.width > 512 || decoded.height > 512)
       ? img.copyResize(
@@ -160,5 +168,8 @@ Uint8List _compressForCloudInIsolate(Uint8List rawBytes) {
         )
       : decoded;
 
-  return Uint8List.fromList(img.encodeJpg(resized, quality: 80));
+  return _CompressedPayload(
+    Uint8List.fromList(img.encodeJpg(resized, quality: 80)),
+    'image/jpeg',
+  );
 }
