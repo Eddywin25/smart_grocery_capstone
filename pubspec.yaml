@@ -42,6 +42,7 @@ dependencies:
   mobile_scanner: ^7.5.0
   tflite_flutter: ^0.12.1
   image: ^4.12.0
+  material_ui: ^1.11.0
 
 dev_dependencies:
   flutter_test:
