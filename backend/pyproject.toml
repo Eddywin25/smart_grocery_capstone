@@ -3,8 +3,8 @@
 
 # pytest (runs the tests)
 [tool.pytest.ini_options]
-pythonpath = ["."]     # lets tests import schema_check.py and seed.py from this folder
-testpaths = ["tests"]  # where to look for test files
+pythonpath = [".", "functions"]         # lets tests import the code in these folders
+testpaths = ["tests", "functions/tests"]  # where to look for test files
 
 # ruff (the linter)
 [tool.ruff]

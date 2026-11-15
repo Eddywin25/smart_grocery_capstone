@@ -1,14 +1,14 @@
 # Backend
 
-Firestore + Python scripts. Schema: [SCHEMA.md](SCHEMA.md).
+Firestore, Python scripts, and the API the app calls. Schema: [SCHEMA.md](SCHEMA.md).
 
 ## Setup
 
 ```bash
 cd backend
-python3 -m venv .venv                                    # creates a .venv folder
-source .venv/bin/activate                                # prompt now starts with (.venv)
-pip install -r requirements.txt -r requirements-dev.txt  # installs firebase-admin, pytest, ruff
+python3.13 -m venv .venv    # creates a .venv folder
+source .venv/bin/activate   # prompt now starts with (.venv)
+pip install -r requirements-dev.txt -r functions/requirements.txt  # installs Firebase, pytest, ruff
 ```
 
 ## Seed
@@ -22,22 +22,47 @@ python seed.py             # prints "Uploaded 31 items to the 'produce' collecti
 
 After seeding, the `produce` collection shows up in the Firebase console under Firestore Database.
 
-## Deploy rules
+## API
 
-Run from the repo root:
+The code is in `functions/`. The app calls these with `FirebaseFunctions.instance.httpsCallable('name')`.
+Every call requires a signed-in user.
+
+| Function | Send | Get back |
+|---|---|---|
+| `lookup_barcode` | `barcode` | the product, or a record with `notFound: true` |
+| `list_inventory` | nothing | a list of the user's items |
+| `add_inventory_item` | `item` (the fields in SCHEMA.md) | the saved item with its `id` |
+| `update_inventory_item` | `id`, `item` (only the fields to change) | the updated item |
+| `delete_inventory_item` | `id` | the `id` |
+| `get_profile` | nothing | the profile, or null if none is saved |
+| `save_profile` | `displayName` | the saved profile |
+| `delete_account` | nothing | the `id`; removes the profile, inventory and login |
+
+If Open Food Facts is slow or down, `lookup_barcode` returns an `unavailable` error and saves
+nothing, so the app should offer manual entry. Signing up and logging in happen in the app with
+Firebase Auth.
+
+## Deploy
+
+The project needs the Blaze plan, Authentication turned on, and a Firestore database. Run from the repo root:
 
 ```bash
-npm install -g firebase-tools           # installs the firebase command
-firebase login                          # opens a browser to sign in with Google
-firebase deploy --only firestore:rules  # prints "Deploy complete!"
+npm install -g firebase-tools    # installs the firebase command
+firebase login                   # opens a browser to sign in with Google
+
+# Firebase needs its own environment inside functions/ to deploy (one time only)
+python3.13 -m venv backend/functions/venv
+backend/functions/venv/bin/pip install -r backend/functions/requirements.txt
+
+firebase deploy --only functions,firestore:rules  # prints "Deploy complete!"
 ```
 
-The rules then show up in the Firebase console under Firestore Database → Rules.
+The rules then show up in the Firebase console under Firestore Database → Rules, and the API under Functions.
 
 ## Test
 
 ```bash
-pytest          # prints "13 passed"
+pytest          # prints "84 passed"
 ruff check .    # prints "All checks passed!"
 ```
 

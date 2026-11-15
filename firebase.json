@@ -22,5 +22,19 @@
         }
       }
     }
-  }
+  },
+  "functions": [
+    {
+      "source": "backend/functions",
+      "codebase": "default",
+      "runtime": "python313",
+      "ignore": [
+        "venv",
+        "__pycache__",
+        "tests",
+        ".git",
+        "*.local"
+      ]
+    }
+  ]
 }

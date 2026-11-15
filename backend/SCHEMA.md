@@ -8,13 +8,22 @@ produce/{plu}
 
 products/{barcode}
   barcode, name, brand, category, imageUrl, shelfLifeDays, fetchedAt
+  (or, if the product is unknown: barcode, notFound, fetchedAt)
+
+users/{uid}
+  displayName, email, updatedAt
 
 users/{uid}/inventory/{itemId}
   name, quantity, packageType, location, purchaseDate, expiryDate,
   source, sourceId, ripeness?, status, updatedAt
 ```
 
-- `category`: Fruit | Vegetable | Herb | Other (same values as `ProduceScanResult.category`)
+- Dates and times (`purchaseDate`, `expiryDate`, `fetchedAt`, `updatedAt`) are ISO 8601 text,
+  e.g. `2026-11-08T12:00:00`, which Dart's `toIso8601String()` and `DateTime.parse` handle
+- `category` on `produce`: Fruit | Vegetable | Herb | Other (same values as `ProduceScanResult.category`)
+- `category` on `products`: Frozen | Dairy | Meat | Seafood | Bread | Beverage | Other
+- `{barcode}`: 8 or 13 digits; a 12-digit UPC is stored with a leading zero
+- `shelfLifeDays` on `products`: an estimate from the category, since Open Food Facts doesn't provide one
 - `location`: fridge | freezer | pantry | counter (`StorageLocation` in the app; `counter` still needs adding there)
 - `quantity`: whole number (`InventoryItem.quantity` is an int)
 - `packageType`: box | cup | bag | package | pouch | bottle | jug | jar | item (`Package` in the app)
