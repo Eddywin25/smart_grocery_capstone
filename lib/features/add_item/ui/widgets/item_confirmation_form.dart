@@ -22,10 +22,30 @@ class ItemFormController extends ChangeNotifier {
 
   static DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+  /// Today plus [days] calendar days (negative counts as 0). Uses the
+  /// DateTime constructor rather than `add(Duration(days: n))`, which adds
+  /// exact 24-hour periods and lands on the previous day when the range
+  /// crosses a daylight-saving change.
+  static DateTime todayPlusDays(int days) {
+    final t = today;
+    return DateTime(t.year, t.month, t.day + (days < 0 ? 0 : days));
+  }
+
   DateTime? get expiryDate => _expiryDate;
 
-  /// Whole days from today to the expiry date, or null if no date is set.
-  int? get daysLeft => _expiryDate?.difference(today).inDays;
+  /// Whole calendar days from today to the expiry date, or null if no date
+  /// is set. Compared in UTC so a daylight-saving change can't make it a
+  /// day short.
+  int? get daysLeft {
+    final e = _expiryDate;
+    if (e == null) return null;
+    final t = today;
+    return DateTime.utc(
+      e.year,
+      e.month,
+      e.day,
+    ).difference(DateTime.utc(t.year, t.month, t.day)).inDays;
+  }
 
   /// Pre-fills the form for a new scan/lookup. Quantity, package and
   /// location keep whatever the user last chose.
@@ -115,7 +135,7 @@ class ItemConfirmationForm extends StatelessWidget {
 
   Future<void> _pickExpiryDate(BuildContext context) async {
     final first = ItemFormController.today;
-    final last = first.add(const Duration(days: 365));
+    final last = ItemFormController.todayPlusDays(365);
     var initial = controller.expiryDate ?? first;
     if (initial.isBefore(first)) initial = first;
     if (initial.isAfter(last)) initial = last;

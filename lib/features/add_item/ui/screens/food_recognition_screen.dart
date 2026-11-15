@@ -106,7 +106,7 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
   DateTime _expiryFor(String name) {
     final days = _result?.estDaysUntilSpoil;
     if (days != null && name == _result?.itemName) {
-      return ItemFormController.today.add(Duration(days: days < 0 ? 0 : days));
+      return ItemFormController.todayPlusDays(days);
     }
     return _expiryService.estimateExpiry(name);
   }
