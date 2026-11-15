@@ -48,11 +48,16 @@ class FakeGeminiVisionService extends GeminiVisionService {
 class FakeImageCaptureService implements ImageCaptureService {
   /// Bytes returned by [capture]; `null` simulates the user cancelling.
   Uint8List? bytesToReturn = Uint8List.fromList([1, 2, 3, 4]);
+
+  /// Thrown by [capture] instead of returning bytes (e.g. a
+  /// `PlatformException(code: 'camera_access_denied')`).
+  Object? errorToThrow;
   final List<bool> calls = [];
 
   @override
   Future<Uint8List?> capture({required bool fromCamera}) async {
     calls.add(fromCamera);
+    if (errorToThrow != null) throw errorToThrow!;
     return bytesToReturn;
   }
 }

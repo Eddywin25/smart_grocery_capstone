@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -157,6 +159,105 @@ void main() {
     await tester.tap(find.byKey(const Key('enterManuallyButton')));
     await tester.pumpAndSettle();
     expect(find.text('MANUAL ENTRY'), findsOneWidget);
+  });
+
+  String errorText(WidgetTester tester) =>
+      tester.widget<Text>(find.byKey(const Key('scanErrorText'))).data!;
+
+  testWidgets('denied camera permission shows a Settings message, not a '
+      'recognition error', (tester) async {
+    fakeCapture.errorToThrow = PlatformException(
+      code: 'camera_access_denied',
+      message: 'The user did not allow camera access.',
+    );
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    expect(errorText(tester), contains('Camera access is turned off'));
+    expect(errorText(tester), contains('Settings'));
+    expect(fakeGemini.callCount, 0);
+    expect(find.byKey(const Key('enterManuallyButton')), findsOneWidget);
+  });
+
+  testWidgets('other camera failures show a camera-specific message', (
+    tester,
+  ) async {
+    fakeCapture.errorToThrow = MissingPluginException('no image_picker');
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    expect(errorText(tester), startsWith("Couldn't open the camera"));
+    expect(fakeGemini.callCount, 0);
+  });
+
+  testWidgets('recognition failure keeps the "couldn\'t identify" message', (
+    tester,
+  ) async {
+    fakeEdge
+      ..resultToReturn = null
+      ..errorToThrow = Exception('tflite failed');
+    fakeGemini.errorToThrow = Exception('offline');
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    expect(errorText(tester), startsWith("We couldn't identify that item"));
+  });
+
+  testWidgets('Retake photo opens the camera directly and rescans', (
+    tester,
+  ) async {
+    fakeGemini.resultToReturn = const ProduceScanResult(
+      itemName: 'Banana',
+      category: 'Fruit',
+      confidence: 0.95,
+      source: ScanSource.geminiCloud,
+      estDaysUntilSpoil: 4,
+    );
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+    expect(nameFieldText(tester), 'Banana');
+
+    fakeGemini.resultToReturn = const ProduceScanResult(
+      itemName: 'Lemon',
+      category: 'Fruit',
+      confidence: 0.95,
+      source: ScanSource.geminiCloud,
+      estDaysUntilSpoil: 14,
+    );
+    final retake = find.byKey(const Key('retakeButton'));
+    await tester.ensureVisible(retake);
+    await tester.tap(retake);
+    await tester.pumpAndSettle();
+
+    expect(fakeCapture.calls, [true, true]); // camera both times
+    expect(find.byKey(const Key('takePhotoButton')), findsNothing);
+    expect(nameFieldText(tester), 'Lemon');
+  });
+
+  testWidgets('cancelling a retake keeps the current result', (tester) async {
+    fakeGemini.resultToReturn = const ProduceScanResult(
+      itemName: 'Banana',
+      category: 'Fruit',
+      confidence: 0.95,
+      source: ScanSource.geminiCloud,
+      estDaysUntilSpoil: 4,
+    );
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    fakeCapture.bytesToReturn = null;
+    final retake = find.byKey(const Key('retakeButton'));
+    await tester.ensureVisible(retake);
+    await tester.tap(retake);
+    await tester.pumpAndSettle();
+
+    expect(nameFieldText(tester), 'Banana');
+    expect(fakeGemini.callCount, 1);
   });
 
   testWidgets('cancelling the camera stays on the start screen', (

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -10,6 +11,9 @@ import '../../../inventory/domain/models/inventory_item.dart';
 import '../../../inventory/ui/providers/inventory_provider.dart';
 
 enum _ScanPhase { start, loading, form, error }
+
+/// Why the error screen is showing, so the message matches the failure.
+enum _ScanError { cameraPermission, camera, recognition }
 
 /// Screen for adding produce by photo. Uses the hybrid
 /// [RecognitionCoordinator] (Edge ML -> Gemini Cloud) and lets the user
@@ -28,6 +32,8 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
   final _expiryService = ExpiryEstService();
 
   _ScanPhase _phase = _ScanPhase.start;
+  _ScanError _error = _ScanError.recognition;
+  bool _lastFromCamera = true;
   ProduceScanResult? _result;
   String? _selectedChoice;
   DateTime? _expiryDate;
@@ -48,19 +54,26 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _captureAndScan({required bool fromCamera}) async {
+    _lastFromCamera = fromCamera;
     final Uint8List? bytes;
     try {
       bytes = await ref
           .read(imageCaptureProvider)
           .capture(fromCamera: fromCamera);
     } catch (e) {
-      // e.g. camera permission denied.
       debugPrint('📷 [FoodRecognition] Capture failed: $e');
       if (!mounted) return;
-      setState(() => _phase = _ScanPhase.error);
+      setState(() {
+        _error = _isPermissionDenied(e)
+            ? _ScanError.cameraPermission
+            : _ScanError.camera;
+        _phase = _ScanPhase.error;
+      });
       return;
     }
-    if (bytes == null || !mounted) return; // User cancelled.
+    // User cancelled: stay where we are (start screen, or the previous result
+    // when retaking).
+    if (bytes == null || !mounted) return;
 
     setState(() => _phase = _ScanPhase.loading);
 
@@ -73,9 +86,17 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
     } catch (e) {
       debugPrint('❌ [FoodRecognition] Recognition failed: $e');
       if (!mounted) return;
-      setState(() => _phase = _ScanPhase.error);
+      setState(() {
+        _error = _ScanError.recognition;
+        _phase = _ScanPhase.error;
+      });
     }
   }
+
+  /// image_picker reports a denied camera/photo permission with these codes.
+  static bool _isPermissionDenied(Object e) =>
+      e is PlatformException &&
+      (e.code == 'camera_access_denied' || e.code == 'photo_access_denied');
 
   void _applyResult(ProduceScanResult result) {
     setState(() {
@@ -230,11 +251,28 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 56, color: Colors.red),
+            Icon(
+              _error == _ScanError.recognition
+                  ? Icons.error_outline
+                  : Icons.no_photography,
+              size: 56,
+              color: Colors.red,
+            ),
             const SizedBox(height: 16),
-            const Text(
-              "We couldn't identify that item. Check your connection and "
-              'try again, or enter it manually.',
+            Text(
+              switch (_error) {
+                _ScanError.cameraPermission =>
+                  'Camera access is turned off. Allow camera access for '
+                      'Smart Grocery in your phone\'s Settings, then try '
+                      'again, or enter the item manually.',
+                _ScanError.camera =>
+                  "Couldn't open the camera. Try again, choose a photo from "
+                      'your gallery, or enter the item manually.',
+                _ScanError.recognition =>
+                  "We couldn't identify that item. Check your connection "
+                      'and try again, or enter it manually.',
+              },
+              key: const Key('scanErrorText'),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -382,9 +420,12 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
           const SizedBox(height: 8),
           Center(
             child: TextButton.icon(
-              onPressed: _restart,
+              key: const Key('retakeButton'),
+              onPressed: () => _captureAndScan(fromCamera: _lastFromCamera),
               icon: const Icon(Icons.refresh),
-              label: const Text('Retake photo'),
+              label: Text(
+                _lastFromCamera ? 'Retake photo' : 'Choose another photo',
+              ),
             ),
           ),
         ],
