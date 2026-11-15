@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "440953659601",
+    "project_id": "smart-grocery-capstone",
+    "storage_bucket": "smart-grocery-capstone.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440953659601:android:ff34e3833949b342d565f0",
+        "android_client_info": {
+          "package_name": "edu.oregonstate.capstone.smart_grocery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0PfVoASI-Tkag7G_6qFO7ozVpYNYQ-_U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

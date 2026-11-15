@@ -1,30 +1,221 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:smart_grocery/models/produce_scan_result.dart';
+import 'package:smart_grocery/services/recognition/barcode_scanner_service.dart';
+import 'package:smart_grocery/services/recognition/edge_ml_service.dart';
+import 'package:smart_grocery/services/recognition/gemini_vision_service.dart';
+import 'package:smart_grocery/services/recognition/recognition_coordinator.dart';
 
-import 'package:smart_grocery/main.dart';
+class _FakeEdgeMlService extends EdgeMlService {
+  ProduceScanResult? resultToReturn;
+  Object? errorToThrow;
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<ProduceScanResult> classifyProduceImage(
+    Uint8List rawImageBytes, {
+    double confidenceThreshold = 0.75,
+  }) async {
+    if (errorToThrow != null) throw errorToThrow!;
+    return resultToReturn!;
+  }
+
+  @override
+  void dispose() {}
+}
+
+class _FakeGeminiVisionService extends GeminiVisionService {
+  ProduceScanResult? resultToReturn;
+  Object? errorToThrow;
+  int callCount = 0;
+
+  @override
+  Future<ProduceScanResult> analyzeProduceImage(
+    Uint8List imageBytes, {
+    String mimeType = 'image/jpeg',
+    double reviewThreshold = 0.75,
+  }) async {
+    callCount++;
+    if (errorToThrow != null) throw errorToThrow!;
+    return resultToReturn!;
+  }
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('ProduceScanResult Serialization & Normalization', () {
+    test(
+      'normalizes N/A ripeness to null and computes needsReview from threshold',
+      () {
+        final result = ProduceScanResult.fromJson(
+          {
+            'itemName': 'Apple',
+            'category': 'Fruit',
+            'confidence': 0.65,
+            'ripeness': 'N/A',
+            'estDaysUntilSpoil': 7,
+            'alternatives': ['Pear', 'Peach'],
+          },
+          source: ScanSource.geminiCloud,
+          confidenceThreshold: 0.75,
+        );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+        expect(result.itemName, 'Apple');
+        expect(result.ripeness, isNull);
+        expect(result.source, ScanSource.geminiCloud);
+        expect(result.needsReview, isTrue);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+        final roundTrip = ProduceScanResult.fromJson(result.toJson());
+        expect(roundTrip.itemName, 'Apple');
+        expect(roundTrip.needsReview, isTrue);
+      },
+    );
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  group('BarcodeScannerService Debounce Cooldown', () {
+    test(
+      'blocks duplicate barcode within cooldown window and allows new barcode',
+      () {
+        final service = BarcodeScannerService(
+          scanCooldown: const Duration(seconds: 3),
+        );
+
+        const captureA = BarcodeCapture(
+          barcodes: [
+            Barcode(rawValue: '012345678905', format: BarcodeFormat.upcA),
+          ],
+        );
+        const captureB = BarcodeCapture(
+          barcodes: [
+            Barcode(rawValue: '987654321098', format: BarcodeFormat.ean13),
+          ],
+        );
+
+        // First scan locks in
+        expect(service.processBarcodeCapture(captureA), '012345678905');
+        // Immediate duplicate frame is ignored
+        expect(service.processBarcodeCapture(captureA), isNull);
+        // Different barcode locks in immediately
+        expect(service.processBarcodeCapture(captureB), '987654321098');
+
+        // Resetting cooldown allows scanning the same barcode again
+        service.resetCooldown();
+        expect(service.processBarcodeCapture(captureB), '987654321098');
+      },
+    );
+  });
+
+  group('RecognitionCoordinator Routing & Fallback', () {
+    late _FakeEdgeMlService fakeEdge;
+    late _FakeGeminiVisionService fakeGemini;
+    late RecognitionCoordinator coordinator;
+    final dummyBytes = Uint8List.fromList([1, 2, 3, 4]);
+
+    setUp(() {
+      fakeEdge = _FakeEdgeMlService();
+      fakeGemini = _FakeGeminiVisionService();
+      coordinator = RecognitionCoordinator(
+        edgeMlService: fakeEdge,
+        geminiService: fakeGemini,
+        barcodeScanner: BarcodeScannerService(),
+        confidenceThreshold: 0.75,
+      );
+    });
+
+    test('returns fast Edge ML result without calling Cloud when confident and ripeness not required', () async {
+      fakeEdge.resultToReturn = const ProduceScanResult(
+        itemName: 'Banana',
+        category: 'Fruit',
+        confidence: 0.95,
+        source: ScanSource.edgeMl,
+        needsReview: false,
+      );
+
+      final result = await coordinator.scanProduce(
+        dummyBytes,
+        requireRipeness: false,
+      );
+
+      expect(result.source, ScanSource.edgeMl);
+      expect(result.itemName, 'Banana');
+      expect(fakeGemini.callCount, 0);
+    });
+
+    test('escalates to Gemini Cloud when requireRipeness is true', () async {
+      fakeEdge.resultToReturn = const ProduceScanResult(
+        itemName: 'Banana',
+        category: 'Fruit',
+        confidence: 0.99,
+        source: ScanSource.edgeMl,
+      );
+      fakeGemini.resultToReturn = const ProduceScanResult(
+        itemName: 'Cavendish Banana',
+        category: 'Fruit',
+        confidence: 0.98,
+        source: ScanSource.geminiCloud,
+        ripeness: 'Ripe',
+        estDaysUntilSpoil: 4,
+      );
+
+      final result = await coordinator.scanProduce(
+        dummyBytes,
+        requireRipeness: true,
+      );
+
+      expect(result.source, ScanSource.geminiCloud);
+      expect(result.ripeness, 'Ripe');
+      expect(fakeGemini.callCount, 1);
+    });
+
+    test(
+      'escalates to Gemini Cloud when Edge ML confidence is below threshold',
+      () async {
+        fakeEdge.resultToReturn = const ProduceScanResult(
+          itemName: 'Apple',
+          category: 'Fruit',
+          confidence: 0.45,
+          source: ScanSource.edgeMl,
+          needsReview: true,
+        );
+        fakeGemini.resultToReturn = const ProduceScanResult(
+          itemName: 'Honeycrisp Apple',
+          category: 'Fruit',
+          confidence: 0.92,
+          source: ScanSource.geminiCloud,
+        );
+
+        final result = await coordinator.scanProduce(
+          dummyBytes,
+          requireRipeness: false,
+        );
+
+        expect(result.source, ScanSource.geminiCloud);
+        expect(result.itemName, 'Honeycrisp Apple');
+        expect(fakeGemini.callCount, 1);
+      },
+    );
+
+    test('falls back gracefully to Edge ML with needsReview=true when Gemini Cloud fails', () async {
+      fakeEdge.resultToReturn = const ProduceScanResult(
+        itemName: 'Banana',
+        category: 'Fruit',
+        confidence: 0.95,
+        source: ScanSource.edgeMl,
+        needsReview: false,
+      );
+      fakeGemini.errorToThrow = Exception('500 Server Error');
+
+      final result = await coordinator.scanProduce(
+        dummyBytes,
+        requireRipeness: true,
+      );
+
+      expect(result.source, ScanSource.edgeMl);
+      expect(result.itemName, 'Banana');
+      expect(result.needsReview, isTrue);
+    });
   });
 }
