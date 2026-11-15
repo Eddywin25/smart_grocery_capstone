@@ -77,10 +77,63 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> enableRipeness(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('requireRipenessSwitch')));
+    await tester.pumpAndSettle();
+  }
+
   String nameFieldText(WidgetTester tester) => tester
       .widget<TextField>(find.byKey(const Key('scanNameField')))
       .controller!
       .text;
+
+  testWidgets('ripeness is off by default: a confident on-device result is '
+      'used without calling Gemini', (tester) async {
+    await pumpScreen(tester);
+
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            find.byKey(const Key('requireRipenessSwitch')),
+          )
+          .value,
+      isFalse,
+    );
+    expect(find.textContaining('Sends the photo to Gemini'), findsOneWidget);
+
+    await takePhoto(tester);
+
+    expect(fakeGemini.callCount, 0);
+    expect(nameFieldText(tester), 'Banana');
+    expect(find.text('Identified on device'), findsOneWidget);
+    expect(find.textContaining('Ripeness:'), findsNothing);
+    // No Gemini spoilage estimate -> ExpiryEstService ('banana' = 6 days).
+    expect(find.text('Best used within 6 days'), findsOneWidget);
+  });
+
+  testWidgets('ripeness off still escalates to Gemini when on-device '
+      'confidence is low', (tester) async {
+    fakeEdge.resultToReturn = const ProduceScanResult(
+      itemName: 'Lemon',
+      category: 'Fruit',
+      confidence: 0.4,
+      source: ScanSource.edgeMl,
+      needsReview: true,
+    );
+    fakeGemini.resultToReturn = const ProduceScanResult(
+      itemName: 'Lime',
+      category: 'Fruit',
+      confidence: 0.9,
+      source: ScanSource.geminiCloud,
+    );
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    expect(fakeGemini.callCount, 1);
+    expect(nameFieldText(tester), 'Lime');
+    expect(find.text('Identified with Gemini'), findsOneWidget);
+  });
 
   testWidgets('confident scan pre-fills name, ripeness and expiry', (
     tester,
@@ -95,10 +148,11 @@ void main() {
     );
 
     await pumpScreen(tester);
+    await enableRipeness(tester);
     await takePhoto(tester);
 
     expect(fakeCapture.calls, [true]);
-    expect(fakeGemini.callCount, 1); // requireRipeness: true always escalates
+    expect(fakeGemini.callCount, 1); // ripeness switch on -> always Gemini
     expect(nameFieldText(tester), 'Banana');
     expect(find.text('Category: Fruit'), findsOneWidget);
     expect(find.text('Ripeness: Ripe'), findsOneWidget);
@@ -120,6 +174,7 @@ void main() {
     );
 
     await pumpScreen(tester);
+    await enableRipeness(tester);
     await takePhoto(tester);
 
     expect(find.byKey(const Key('needsReviewBanner')), findsOneWidget);
@@ -218,6 +273,7 @@ void main() {
     );
 
     await pumpScreen(tester);
+    await enableRipeness(tester);
     await takePhoto(tester);
     expect(nameFieldText(tester), 'Banana');
 
@@ -248,6 +304,7 @@ void main() {
     );
 
     await pumpScreen(tester);
+    await enableRipeness(tester);
     await takePhoto(tester);
 
     fakeCapture.bytesToReturn = null;
@@ -285,6 +342,7 @@ void main() {
     final before = container.read(inventoryProvider).length;
 
     await pumpScreen(tester);
+    await enableRipeness(tester);
     await takePhoto(tester);
 
     await tester.enterText(find.byKey(const Key('scanQuantityField')), '3');

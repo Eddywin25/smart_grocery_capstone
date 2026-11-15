@@ -34,6 +34,10 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
   _ScanPhase _phase = _ScanPhase.start;
   _ScanError _error = _ScanError.recognition;
   bool _lastFromCamera = true;
+
+  /// User opt-in: when on, every scan goes to Gemini Cloud for ripeness and
+  /// spoilage days. When off, a confident on-device result returns instantly.
+  bool _requireRipeness = false;
   ProduceScanResult? _result;
   String? _selectedChoice;
   DateTime? _expiryDate;
@@ -80,7 +84,7 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
     try {
       final result = await ref
           .read(recognitionCoordinatorProvider)
-          .scanProduce(bytes, requireRipeness: true);
+          .scanProduce(bytes, requireRipeness: _requireRipeness);
       if (!mounted) return;
       _applyResult(result);
     } catch (e) {
@@ -211,7 +215,19 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
               'Take a photo of a fruit or vegetable to identify it.',
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              key: const Key('requireRipenessSwitch'),
+              value: _requireRipeness,
+              onChanged: (value) => setState(() => _requireRipeness = value),
+              title: const Text('Check ripeness & spoilage'),
+              subtitle: const Text(
+                'Sends the photo to Gemini (cloud) to estimate ripeness and '
+                'days until it spoils. Needs internet and takes a few '
+                'seconds longer.',
+              ),
+            ),
+            const SizedBox(height: 16),
             FilledButton.icon(
               key: const Key('takePhotoButton'),
               onPressed: () => _captureAndScan(fromCamera: true),
@@ -232,13 +248,17 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
   }
 
   Widget _buildLoading() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Identifying your produce…'),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(
+            _requireRipeness
+                ? 'Checking ripeness with Gemini…'
+                : 'Identifying your produce…',
+          ),
         ],
       ),
     );
@@ -345,6 +365,13 @@ class _FoodRecognitionScreenState extends ConsumerState<FoodRecognitionScreen> {
           const SizedBox(height: 12),
 
           Text('Category: ${result.category}'),
+          Text(
+            result.source == ScanSource.geminiCloud
+                ? 'Identified with Gemini'
+                : 'Identified on device',
+            key: const Key('scanSourceText'),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           if (result.ripeness != null) Text('Ripeness: ${result.ripeness}'),
           const SizedBox(height: 16),
 
