@@ -114,8 +114,10 @@ class EdgeMlService {
 
     // 1. Decode & resize image to 224x224 RGB in a background Isolate
     final stopwatch = Stopwatch()..start();
-    final inputMatrix = await Isolate.run(
-      () => _preprocessImageInIsolate(rawImageBytes, _inputSize, isQuantized),
+    final inputMatrix = await preprocessImageForModel(
+      rawImageBytes,
+      _inputSize,
+      isQuantized,
     );
     final preprocessMs = stopwatch.elapsedMilliseconds;
 
@@ -241,6 +243,26 @@ class EdgeMlService {
     _interpreter = null;
     _initFuture = null;
   }
+}
+
+/// Decodes and resizes [rawBytes] to a `[1, size, size, 3]` input tensor in a
+/// background isolate.
+///
+/// This must stay a top-level function. `Isolate.run` copies everything its
+/// closure captures, and a closure created inside an instance method shares
+/// the method's context with sibling closures that reference `this`, which
+/// drags the whole `EdgeMlService` (including its unsendable `_initFuture`)
+/// into the isolate message and fails on device. Here the closure only sees
+/// these three parameters.
+@visibleForTesting
+Future<List<List<List<List<num>>>>> preprocessImageForModel(
+  Uint8List rawBytes,
+  int targetSize,
+  bool isQuantized,
+) {
+  return Isolate.run(
+    () => _preprocessImageInIsolate(rawBytes, targetSize, isQuantized),
+  );
 }
 
 /// Top-level function executed inside the background Dart Isolate.
