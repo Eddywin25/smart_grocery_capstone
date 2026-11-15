@@ -4,46 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:smart_grocery/models/produce_scan_result.dart';
 import 'package:smart_grocery/services/recognition/barcode_scanner_service.dart';
-import 'package:smart_grocery/services/recognition/edge_ml_service.dart';
-import 'package:smart_grocery/services/recognition/gemini_vision_service.dart';
 import 'package:smart_grocery/services/recognition/recognition_coordinator.dart';
 
-class _FakeEdgeMlService extends EdgeMlService {
-  ProduceScanResult? resultToReturn;
-  Object? errorToThrow;
-
-  @override
-  Future<void> initialize() async {}
-
-  @override
-  Future<ProduceScanResult> classifyProduceImage(
-    Uint8List rawImageBytes, {
-    double confidenceThreshold = 0.75,
-  }) async {
-    if (errorToThrow != null) throw errorToThrow!;
-    return resultToReturn!;
-  }
-
-  @override
-  void dispose() {}
-}
-
-class _FakeGeminiVisionService extends GeminiVisionService {
-  ProduceScanResult? resultToReturn;
-  Object? errorToThrow;
-  int callCount = 0;
-
-  @override
-  Future<ProduceScanResult> analyzeProduceImage(
-    Uint8List imageBytes, {
-    String mimeType = 'image/jpeg',
-    double reviewThreshold = 0.75,
-  }) async {
-    callCount++;
-    if (errorToThrow != null) throw errorToThrow!;
-    return resultToReturn!;
-  }
-}
+import 'fakes/fake_recognition_services.dart';
 
 void main() {
   group('ProduceScanResult Serialization & Normalization', () {
@@ -109,14 +72,14 @@ void main() {
   });
 
   group('RecognitionCoordinator Routing & Fallback', () {
-    late _FakeEdgeMlService fakeEdge;
-    late _FakeGeminiVisionService fakeGemini;
+    late FakeEdgeMlService fakeEdge;
+    late FakeGeminiVisionService fakeGemini;
     late RecognitionCoordinator coordinator;
     final dummyBytes = Uint8List.fromList([1, 2, 3, 4]);
 
     setUp(() {
-      fakeEdge = _FakeEdgeMlService();
-      fakeGemini = _FakeGeminiVisionService();
+      fakeEdge = FakeEdgeMlService();
+      fakeGemini = FakeGeminiVisionService();
       coordinator = RecognitionCoordinator(
         edgeMlService: fakeEdge,
         geminiService: fakeGemini,

@@ -1,0 +1,202 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:smart_grocery/features/add_item/ui/screens/food_recognition_screen.dart';
+import 'package:smart_grocery/features/inventory/ui/providers/inventory_provider.dart';
+import 'package:smart_grocery/models/produce_scan_result.dart';
+import 'package:smart_grocery/services/recognition/barcode_scanner_service.dart';
+import 'package:smart_grocery/services/recognition/recognition_coordinator.dart';
+import 'package:smart_grocery/services/recognition/recognition_providers.dart';
+
+import 'fakes/fake_recognition_services.dart';
+
+void main() {
+  late FakeEdgeMlService fakeEdge;
+  late FakeGeminiVisionService fakeGemini;
+  late FakeImageCaptureService fakeCapture;
+  late ProviderContainer container;
+
+  setUp(() {
+    fakeEdge = FakeEdgeMlService()
+      ..resultToReturn = const ProduceScanResult(
+        itemName: 'Banana',
+        category: 'Fruit',
+        confidence: 0.9,
+        source: ScanSource.edgeMl,
+      );
+    fakeGemini = FakeGeminiVisionService();
+    fakeCapture = FakeImageCaptureService();
+    container = ProviderContainer(
+      overrides: [
+        recognitionCoordinatorProvider.overrideWithValue(
+          RecognitionCoordinator(
+            edgeMlService: fakeEdge,
+            geminiService: fakeGemini,
+            barcodeScanner: BarcodeScannerService(),
+          ),
+        ),
+        imageCaptureProvider.overrideWithValue(fakeCapture),
+      ],
+    );
+  });
+
+  tearDown(() => container.dispose());
+
+  Future<void> pumpScreen(WidgetTester tester) async {
+    final router = GoRouter(
+      initialLocation: '/ai-add-item',
+      routes: [
+        GoRoute(
+          path: '/ai-add-item',
+          builder: (_, _) => const FoodRecognitionScreen(),
+        ),
+        GoRoute(
+          path: '/inventory',
+          builder: (_, _) => const Scaffold(body: Text('INVENTORY')),
+        ),
+        GoRoute(
+          path: '/manual-add-item',
+          builder: (_, _) => const Scaffold(body: Text('MANUAL ENTRY')),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> takePhoto(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('takePhotoButton')));
+    await tester.pumpAndSettle();
+  }
+
+  String nameFieldText(WidgetTester tester) => tester
+      .widget<TextField>(find.byKey(const Key('scanNameField')))
+      .controller!
+      .text;
+
+  testWidgets('confident scan pre-fills name, ripeness and expiry', (
+    tester,
+  ) async {
+    fakeGemini.resultToReturn = const ProduceScanResult(
+      itemName: 'Banana',
+      category: 'Fruit',
+      confidence: 0.95,
+      source: ScanSource.geminiCloud,
+      ripeness: 'Ripe',
+      estDaysUntilSpoil: 4,
+    );
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    expect(fakeCapture.calls, [true]);
+    expect(fakeGemini.callCount, 1); // requireRipeness: true always escalates
+    expect(nameFieldText(tester), 'Banana');
+    expect(find.text('Category: Fruit'), findsOneWidget);
+    expect(find.text('Ripeness: Ripe'), findsOneWidget);
+    expect(find.text('Best used within 4 days'), findsOneWidget);
+    expect(find.byKey(const Key('needsReviewBanner')), findsNothing);
+    expect(find.byType(ChoiceChip), findsNothing);
+  });
+
+  testWidgets('uncertain scan shows alternative chips; tapping one updates '
+      'the name and re-estimates expiry', (tester) async {
+    fakeGemini.resultToReturn = const ProduceScanResult(
+      itemName: 'Banana',
+      category: 'Fruit',
+      confidence: 0.5,
+      source: ScanSource.geminiCloud,
+      estDaysUntilSpoil: 4,
+      alternatives: ['Plantain', 'Banana'],
+      needsReview: true,
+    );
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    expect(find.byKey(const Key('needsReviewBanner')), findsOneWidget);
+    // Duplicate alternative ('Banana') is collapsed into the top guess.
+    expect(find.byType(ChoiceChip), findsNWidgets(2));
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Plantain'));
+    await tester.pumpAndSettle();
+
+    expect(nameFieldText(tester), 'Plantain');
+    // 'plantain' is not in ExpiryEstService's table -> 7-day default.
+    expect(find.text('Best used within 7 days'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Banana'));
+    await tester.pumpAndSettle();
+    expect(find.text('Best used within 4 days'), findsOneWidget);
+  });
+
+  testWidgets('failed scan shows error with retry and manual entry', (
+    tester,
+  ) async {
+    fakeEdge
+      ..resultToReturn = null
+      ..errorToThrow = Exception('tflite failed');
+    fakeGemini.errorToThrow = Exception('offline');
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    expect(find.byKey(const Key('tryAgainButton')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('tryAgainButton')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('takePhotoButton')), findsOneWidget);
+
+    await takePhoto(tester);
+    await tester.tap(find.byKey(const Key('enterManuallyButton')));
+    await tester.pumpAndSettle();
+    expect(find.text('MANUAL ENTRY'), findsOneWidget);
+  });
+
+  testWidgets('cancelling the camera stays on the start screen', (
+    tester,
+  ) async {
+    fakeCapture.bytesToReturn = null;
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    expect(find.byKey(const Key('takePhotoButton')), findsOneWidget);
+    expect(fakeGemini.callCount, 0);
+  });
+
+  testWidgets('saving adds the item to inventory and returns to /inventory', (
+    tester,
+  ) async {
+    fakeGemini.resultToReturn = const ProduceScanResult(
+      itemName: 'Banana',
+      category: 'Fruit',
+      confidence: 0.95,
+      source: ScanSource.geminiCloud,
+      estDaysUntilSpoil: 4,
+    );
+    final before = container.read(inventoryProvider).length;
+
+    await pumpScreen(tester);
+    await takePhoto(tester);
+
+    await tester.enterText(find.byKey(const Key('scanQuantityField')), '3');
+    final save = find.byKey(const Key('saveScannedItemButton'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    final items = container.read(inventoryProvider);
+    expect(items.length, before + 1);
+    expect(items.last.name, 'Banana');
+    expect(items.last.quantity, 3);
+    expect(items.last.daysLeft, 4);
+    expect(find.text('INVENTORY'), findsOneWidget);
+  });
+}
