@@ -86,4 +86,41 @@ class InventoryItem {
     }
     return "Expires in $days days";
   }
+
+  // Get the purchased date in MM/DD/YYYY format
+  String get displayPurchaseDate {
+    return '${purchaseDate.month}/${purchaseDate.day}/${purchaseDate.year}';
+  }
+
+  // Get the expiry date in MM/DD/YYYY format
+  String get displayExpiryDate {
+    return '${expiryDate.month}/${expiryDate.day}/${expiryDate.year}';
+  }
+
+  // Get the quantity, package type, and the location of the item
+  String get displayQuantLocation {
+    return '$displayItemLocation : $displayQuantPackage';
+  }
+
+  // Get the quantity and package type only of the item
+  String get displayQuantPackage {
+    return '$quantity ${packageType.packageReference(quantity)}';
+  }
+
+  // Converts the food item to title case
+  String get displayItemName {
+  return name
+      .split(' ')
+      .map(
+        (word) =>
+            word[0].toUpperCase() +
+            word.substring(1).toLowerCase(),
+      )
+      .join(' ');
+  }
+
+  // Capitalizes the food item's storage location
+  String get displayItemLocation {
+  return location.name[0].toUpperCase() + location.name.substring(1);
+  }
 }
