@@ -5,6 +5,7 @@
 import FlutterMacOS
 import Foundation
 
+import cloud_functions
 import file_selector_macos
 import firebase_ai
 import firebase_app_check
@@ -13,6 +14,7 @@ import firebase_core
 import mobile_scanner
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  FirebaseFunctionsPlugin.register(with: registry.registrar(forPlugin: "FirebaseFunctionsPlugin"))
   FileSelectorPlugin.register(with: registry.registrar(forPlugin: "FileSelectorPlugin"))
   FirebaseAIPlugin.register(with: registry.registrar(forPlugin: "FirebaseAIPlugin"))
   FirebaseAppCheckPlugin.register(with: registry.registrar(forPlugin: "FirebaseAppCheckPlugin"))

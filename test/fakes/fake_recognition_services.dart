@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:smart_grocery/models/produce_scan_result.dart';
+import 'package:smart_grocery/models/product_lookup_result.dart';
+import 'package:smart_grocery/services/barcode/barcode_lookup_service.dart';
 import 'package:smart_grocery/services/recognition/edge_ml_service.dart';
 import 'package:smart_grocery/services/recognition/gemini_vision_service.dart';
 import 'package:smart_grocery/services/recognition/recognition_providers.dart';
@@ -59,5 +61,18 @@ class FakeImageCaptureService implements ImageCaptureService {
     calls.add(fromCamera);
     if (errorToThrow != null) throw errorToThrow!;
     return bytesToReturn;
+  }
+}
+
+class FakeBarcodeLookupService implements BarcodeLookupService {
+  ProductLookupResult? resultToReturn;
+  Object? errorToThrow;
+  final List<String> lookedUp = [];
+
+  @override
+  Future<ProductLookupResult> lookup(String barcode) async {
+    lookedUp.add(barcode);
+    if (errorToThrow != null) throw errorToThrow!;
+    return resultToReturn!;
   }
 }

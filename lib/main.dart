@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -5,6 +7,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firebase_options.dart';
+import 'services/auth/auth_service.dart';
 import 'shared/routing/router.dart'; // Custom navigation/routes
 
 Future<void> main() async {
@@ -29,6 +32,16 @@ Future<void> main() async {
           ),
   );
   debugPrint('🛡️ Firebase App Check activated!');
+
+  // Cloud Functions need a signed-in user. Sign in anonymously in the
+  // background so the app opens instantly even offline; the barcode lookup
+  // calls ensureSignedIn() again before every request.
+  unawaited(
+    AuthService().ensureSignedIn().then(
+      (_) => debugPrint('🔑 Signed in anonymously.'),
+      onError: (Object e) => debugPrint('🔑 Anonymous sign-in deferred: $e'),
+    ),
+  );
 
   runApp(const ProviderScope(child: MyApp()));
 }
