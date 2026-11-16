@@ -128,7 +128,7 @@ class InventoryItem {
   }
 
   // Create new inventory item instance with updated attributes
-  InventoryItem itemUpdate({
+  InventoryItem itemCopyUpdate({
     String? id,
     String? name,
     int? quantity,

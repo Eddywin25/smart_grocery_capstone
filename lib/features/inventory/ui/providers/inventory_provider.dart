@@ -40,7 +40,21 @@ class InventoryNotifier extends StateNotifier<List<InventoryItem>> {
     state = state.map((item) {
 
       if (item.id == id) {
-        return item.itemUpdate(quantity: quantity);
+        return item.itemCopyUpdate(quantity: quantity);
+      }
+
+      return item;
+
+    }).toList();
+  }
+
+  // Update attributes of a grocery item (used for Edit Screen)
+  void updateItem(InventoryItem updatedItem) {
+
+    state = state.map((item) {
+
+      if (item.id == updatedItem.id) {
+        return updatedItem;
       }
 
       return item;

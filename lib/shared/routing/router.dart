@@ -1,5 +1,7 @@
 
 import 'package:go_router/go_router.dart';
+import '../../features/inventory/domain/models/inventory_item.dart';
+import '../../features/inventory/ui/screens/edit_item_screen.dart';
 import '../../features/inventory/ui/screens/inventory_screen.dart';
 import '../../features/add_item/ui/screens/add_item_screen.dart';
 import '../../features/add_item/ui/screens/manually_add_item_screen.dart';
@@ -40,6 +42,16 @@ final router = GoRouter(
       path: '/ai-add-item',
       builder: (context, state) {
         return const FoodRecognitionScreen();
+      },
+    ),
+    GoRoute(
+      path: '/edit-item',
+      builder: (context, state) {
+        final item =
+            state.extra as InventoryItem;
+        return EditItemScreen(
+          item: item,
+        );
       },
     ),
   ],
