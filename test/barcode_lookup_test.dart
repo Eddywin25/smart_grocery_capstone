@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_grocery/models/product_lookup_result.dart';
+import 'package:smart_grocery/services/auth/auth_service.dart';
 import 'package:smart_grocery/services/barcode/barcode_lookup_service.dart';
 
 void main() {
@@ -101,6 +102,30 @@ void main() {
       expect(BarcodeLookupService.isProductBarcode('1234567'), isFalse);
       expect(BarcodeLookupService.isProductBarcode('12345678901'), isFalse);
       expect(BarcodeLookupService.isProductBarcode('01234567890a'), isFalse);
+    });
+  });
+
+  group('debug explanations', () {
+    test('Cloud Run rejection vs. function rejection are told apart', () {
+      expect(
+        explainFunctionsError('unauthenticated', 'UNAUTHENTICATED'),
+        contains('Allow public access'),
+      );
+      expect(
+        explainFunctionsError('unauthenticated', 'You must be signed in.'),
+        contains('no signed-in user'),
+      );
+    });
+
+    test('sign-up blocked in the console is named explicitly', () {
+      expect(
+        explainSignInError('admin-restricted-operation'),
+        contains('Enable create (sign-up)'),
+      );
+      expect(
+        explainSignInError('operation-not-allowed'),
+        contains('Anonymous sign-in provider is disabled'),
+      );
     });
   });
 }

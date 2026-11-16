@@ -19,4 +19,21 @@ class AuthService {
   }
 }
 
+/// Developer-facing explanation of an anonymous sign-in failure, for debug
+/// logs. The two config codes mean the Firebase project is blocking
+/// sign-up, not that the phone is offline.
+String explainSignInError(String code) => switch (code) {
+  'admin-restricted-operation' =>
+    'Firebase is blocking new accounts. In the Firebase Console -> '
+        'Authentication, check Sign-in method -> Anonymous is Enabled AND '
+        'Settings -> User actions -> "Enable create (sign-up)" is checked.',
+  'operation-not-allowed' =>
+    'The Anonymous sign-in provider is disabled. Enable it in the Firebase '
+        'Console -> Authentication -> Sign-in method.',
+  'network-request-failed' => 'No network connection to Firebase Auth.',
+  'too-many-requests' =>
+    'Firebase Auth is rate-limiting this device; wait and try again.',
+  _ => 'Unexpected Firebase Auth error ($code).',
+};
+
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());

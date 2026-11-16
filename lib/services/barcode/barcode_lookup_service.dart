@@ -48,6 +48,35 @@ BarcodeLookupError lookupErrorForFunctionsCode(String code) => switch (code) {
   _ => BarcodeLookupError.unknown,
 };
 
+/// Developer-facing explanation of a callable error, for debug logs.
+///
+/// `unauthenticated` has two very different causes. Chris's
+/// `signed_in_user()` rejects with the message "You must be signed in."
+/// (the app sent no Firebase user). Any other message, typically a bare
+/// "UNAUTHENTICATED", means Google's front end rejected the request before
+/// the function ran: the function's Cloud Run service doesn't allow public
+/// invocation.
+@visibleForTesting
+String explainFunctionsError(String code, String? message) => switch (code) {
+  'unauthenticated' when message == 'You must be signed in.' =>
+    'The function ran but saw no signed-in user; the app called it '
+        'before anonymous sign-in finished or sign-in failed.',
+  'unauthenticated' =>
+    'Rejected before reaching the function. In Google Cloud Console -> '
+        'Cloud Run -> <service> -> Security, set Authentication to '
+        '"Allow public access" (callable functions still check the Firebase '
+        'user in code).',
+  'not-found' =>
+    'No deployed function with that name; deploy with '
+        '`firebase deploy --only functions`.',
+  'unavailable' =>
+    'The device is offline, or the function could not reach Open Food '
+        'Facts.',
+  'deadline-exceeded' => 'The call took longer than the client timeout.',
+  'invalid-argument' => 'The backend rejected the barcode format.',
+  _ => 'Unexpected Cloud Functions error.',
+};
+
 abstract class BarcodeLookupService {
   /// Product barcodes the backend accepts: 8 (EAN-8/UPC-E), 12 (UPC-A) or
   /// 13 (EAN-13) digits. Mirrors `clean_barcode` in
@@ -63,10 +92,7 @@ abstract class BarcodeLookupService {
 
 /// Calls Chris's `lookup_barcode` Firebase callable function.
 class FirebaseBarcodeLookupService implements BarcodeLookupService {
-  FirebaseBarcodeLookupService({
-    required this._auth,
-    this._functions,
-  });
+  FirebaseBarcodeLookupService({required this._auth, this._functions});
 
   static const _timeout = Duration(seconds: 15);
 
@@ -78,7 +104,10 @@ class FirebaseBarcodeLookupService implements BarcodeLookupService {
     try {
       await _auth.ensureSignedIn();
     } on FirebaseAuthException catch (e) {
-      debugPrint('🔑 [BarcodeLookup] Anonymous sign-in failed: ${e.code}');
+      debugPrint(
+        '🔑 [BarcodeLookup] Anonymous sign-in failed (${e.code}): '
+        '${explainSignInError(e.code)}',
+      );
       throw BarcodeLookupException(
         e.code == 'network-request-failed'
             ? BarcodeLookupError.offline
@@ -96,7 +125,10 @@ class FirebaseBarcodeLookupService implements BarcodeLookupService {
       });
       return ProductLookupResult.fromMap(response.data);
     } on FirebaseFunctionsException catch (e) {
-      debugPrint('📦 [BarcodeLookup] ${e.code}: ${e.message}');
+      debugPrint(
+        '📦 [BarcodeLookup] ${e.code}: ${e.message} -> '
+        '${explainFunctionsError(e.code, e.message)}',
+      );
       throw BarcodeLookupException(lookupErrorForFunctionsCode(e.code));
     } on TimeoutException {
       throw const BarcodeLookupException(BarcodeLookupError.timeout);

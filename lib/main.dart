@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firebase_options.dart';
@@ -39,7 +40,10 @@ Future<void> main() async {
   unawaited(
     AuthService().ensureSignedIn().then(
       (_) => debugPrint('🔑 Signed in anonymously.'),
-      onError: (Object e) => debugPrint('🔑 Anonymous sign-in deferred: $e'),
+      onError: (Object e) => debugPrint(
+        '🔑 Anonymous sign-in deferred: '
+        '${e is FirebaseAuthException ? explainSignInError(e.code) : e}',
+      ),
     ),
   );
 
