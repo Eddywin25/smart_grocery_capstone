@@ -34,4 +34,18 @@ class InventoryNotifier extends StateNotifier<List<InventoryItem>> {
       .where((item) => item.id != id)
       .toList();
   }
+
+  // Update the quantity of an item
+  void updateQuantity(String id, int quantity) {
+    state = state.map((item) {
+
+      if (item.id == id) {
+        return item.itemUpdate(quantity: quantity);
+      }
+
+      return item;
+
+    }).toList();
+  }
+
 }

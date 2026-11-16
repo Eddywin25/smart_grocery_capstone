@@ -107,7 +107,40 @@ class InventoryItemCard extends ConsumerWidget {
                           ),
                           child: IconButton(
                             icon: const Icon(Icons.remove),
-                            onPressed: () {},
+                            onPressed: () async {
+                              if (item.quantity > 1) {
+                                ref
+                                  .read(
+                                    inventoryProvider.notifier,
+                                  )
+                                  .updateQuantity(
+                                    item.id,
+                                    item.quantity - 1,
+                                  );
+                              }
+
+                              if (item.quantity == 1) {
+
+                                final confirmed =
+                                    await _confirmRemoval(
+                                  context,
+                                  'Finish Item',
+                                  'Quantity will reach zero. Mark item as finished?',
+                                );
+
+                                if (confirmed == true) {
+                                  ref
+                                    .read(
+                                      inventoryProvider.notifier,
+                                    )
+                                    .removeItem(
+                                      item.id,
+                                      FoodItemOutcome.finished,
+                                    );
+                                }
+                                return;
+                              }
+                            },
                           ),
                         ),
 
@@ -127,7 +160,16 @@ class InventoryItemCard extends ConsumerWidget {
                           ),
                           child: IconButton(
                             icon: const Icon(Icons.add),
-                            onPressed: () {},
+                            onPressed: () {
+                              ref
+                                .read(
+                                  inventoryProvider.notifier,
+                                )
+                                .updateQuantity(
+                                  item.id,
+                                  item.quantity + 1,
+                                );
+                            },
                           ),
                         ),
                       ],

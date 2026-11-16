@@ -126,4 +126,26 @@ class InventoryItem {
   String get displayItemLocation {
   return location.name[0].toUpperCase() + location.name.substring(1);
   }
+
+  // Create new inventory item instance with updated attributes
+  InventoryItem itemUpdate({
+    String? id,
+    String? name,
+    int? quantity,
+    StorageLocation? location,
+    DateTime? purchaseDate,
+    DateTime? expiryDate,
+    Package? packageType,
+  }) {
+    return InventoryItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      quantity: quantity ?? this.quantity,
+      location: location ?? this.location,
+      purchaseDate: purchaseDate ?? this.purchaseDate,
+      expiryDate: expiryDate ?? this.expiryDate,
+      packageType: packageType ?? this.packageType,
+    );
+  }
+
 }
