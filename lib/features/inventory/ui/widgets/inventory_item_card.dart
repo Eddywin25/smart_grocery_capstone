@@ -1,14 +1,17 @@
+import 'package:smart_grocery/features/inventory/ui/providers/inventory_provider.dart';
+
 import '../../domain/models/inventory_item.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Listing for a Grocery Inventory Record
-class InventoryItemCard extends StatelessWidget {
+class InventoryItemCard extends ConsumerWidget {
   final InventoryItem item;
 
   const InventoryItemCard({super.key, required this.item});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
     child: Padding(
       padding: const EdgeInsets.all(14),
@@ -142,7 +145,20 @@ class InventoryItemCard extends StatelessWidget {
 
                   // Button for finishing food
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: ()  async{
+                      final confirmation = 
+                        await _confirmRemoval(
+                        context, 
+                        "Finished Item", 
+                        "Mark ${item.displayItemName} as finished?"
+                      );
+
+                      if (confirmation == true) {
+                        ref
+                          .read(inventoryProvider.notifier)
+                          .removeItem(item.id, FoodItemOutcome.finished);
+                      }
+                    },
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.green.shade100,
                     ),
@@ -159,7 +175,20 @@ class InventoryItemCard extends StatelessWidget {
 
                   // Button for marking food as spoiled
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: ()  async{
+                      final confirmation = 
+                        await _confirmRemoval(
+                        context, 
+                        "Spoiled Item", 
+                        "Mark ${item.displayItemName} as spoiled?"
+                      );
+
+                      if (confirmation == true) {
+                        ref
+                          .read(inventoryProvider.notifier)
+                          .removeItem(item.id, FoodItemOutcome.spoiled);
+                      }
+                    },
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.orangeAccent.shade100,
                     ),
@@ -176,7 +205,20 @@ class InventoryItemCard extends StatelessWidget {
 
                   // Button for deleting a food item
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: ()  async{
+                      final confirmation = 
+                        await _confirmRemoval(
+                        context, 
+                        "Delete Item", 
+                        "Delete ${item.displayItemName}?"
+                      );
+
+                      if (confirmation == true) {
+                        ref
+                          .read(inventoryProvider.notifier)
+                          .removeItem(item.id, FoodItemOutcome.deleted);
+                      }
+                    },
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.red.shade300,
                     ),
@@ -254,4 +296,34 @@ class _DateInfoDisplay extends StatelessWidget {
       ),
     );
   }
+}
+
+
+// Private helper used to confirm removal of a grocery item from inventory
+Future<bool?> _confirmRemoval(
+  BuildContext context,
+  String title,
+  String message,
+) {
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context, false);
+          },
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(context, true);
+          },
+          child: const Text('Confirm'),
+        ),
+      ],
+    ),
+  );
 }

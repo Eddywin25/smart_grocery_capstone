@@ -1,7 +1,7 @@
 // Inventory Item Model and Attributes
 
 // Possible storage locations
-enum StorageLocation { fridge, freezer, pantry }
+enum StorageLocation { fridge, freezer, pantry, counter }
 
 // Possible types of packaging
 enum Package { box, cup, bag, package, pouch, bottle, jug, jar, item }
@@ -39,6 +39,9 @@ extension PackageExtension on Package {
     }
   }
 }
+
+// Possible end states of food
+enum FoodItemOutcome { finished, spoiled, deleted }
 
 // Grocery item and associated attributes
 class InventoryItem {

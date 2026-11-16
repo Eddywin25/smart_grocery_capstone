@@ -27,4 +27,11 @@ class InventoryNotifier extends StateNotifier<List<InventoryItem>> {
   void addItem(InventoryItem item) {
     state = [...state, item];
   }
+
+  // Remove an item
+  void removeItem(String id, FoodItemOutcome outcome,) {
+  state = state
+      .where((item) => item.id != id)
+      .toList();
+  }
 }
