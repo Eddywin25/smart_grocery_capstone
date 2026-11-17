@@ -1,7 +1,7 @@
 // Inventory Item Model and Attributes
 
 // Possible storage locations
-enum StorageLocation { fridge, freezer, pantry }
+enum StorageLocation { fridge, freezer, pantry, counter }
 
 // Possible types of packaging
 enum Package { box, cup, bag, package, pouch, bottle, jug, jar, item }
@@ -78,10 +78,10 @@ class InventoryItem {
       final overdue = days.abs();
       return overdue == 1 ? 'Expired 1 day ago' : 'Expired $overdue days ago';
     }
-    if (daysLeft == 0) {
+    if (days == 0) {
       return "Expires today";
     }
-    if (daysLeft == 1) {
+    if (days == 1) {
       return "Expires tomorrow";
     }
     return "Expires in $days days";

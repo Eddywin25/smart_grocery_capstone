@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../inventory/domain/models/inventory_item.dart';
 import '../../../inventory/ui/providers/inventory_provider.dart';
 import '../../../inventory/data/services/expiry_est_service.dart';
+import 'package:flutter/services.dart';
 
 
 // Screen for Manually Entering Information to Add Grocery Item to Inventory
@@ -73,6 +74,7 @@ class _ManuallyAddItemScreenState extends ConsumerState<ManuallyAddItemScreen> {
                       setState(() {
                         selectedExpiryDate = expiryService.estimateExpiry(_nameController.text);
                         _displayExpiryField = true;
+                        _expiryError = false;
                       });
                     },
 
@@ -97,8 +99,15 @@ class _ManuallyAddItemScreenState extends ConsumerState<ManuallyAddItemScreen> {
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
 
-                      if (pickedDate != null) {
-                        setState(() {selectedExpiryDate = pickedDate;});
+                      if (!mounted) {
+                        return;
+                      }
+
+                      if (pickedDate != null && mounted) {
+                        setState(() {
+                          selectedExpiryDate = pickedDate;
+                          _expiryError = false;
+                        });
                       }
                     },
 
@@ -121,7 +130,7 @@ class _ManuallyAddItemScreenState extends ConsumerState<ManuallyAddItemScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: _expiryError ? Colors.red : Colors.grey,
+                    color: _expiryError ? Colors.red : Colors.black,
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -135,7 +144,7 @@ class _ManuallyAddItemScreenState extends ConsumerState<ManuallyAddItemScreen> {
                             '${selectedExpiryDate!.day}/'
                             '${selectedExpiryDate!.year}',
                   style: TextStyle(
-                    color: _expiryError ? Colors.red : Colors.grey,
+                    color: _expiryError ? Colors.red : Colors.black,
                   ),
                 ),
               ),
@@ -147,6 +156,9 @@ class _ManuallyAddItemScreenState extends ConsumerState<ManuallyAddItemScreen> {
             TextField(
               controller: _quantityController,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+              ],
               decoration: InputDecoration(
                 labelText: 'Quantity',
                 border: OutlineInputBorder(),
@@ -202,11 +214,12 @@ class _ManuallyAddItemScreenState extends ConsumerState<ManuallyAddItemScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  final quantity = int.tryParse(_quantityController.text);
+                  final quantity = int.tryParse(_quantityController.text.trim());
+                  final trimmedName = _nameController.text.trim();
 
                   // Perform validation
                   setState(() {
-                    _nameError = _nameController.text.trim().isEmpty;
+                    _nameError = trimmedName.isEmpty;
                     _quantityError = quantity == null || quantity <= 0;
                     _expiryError = selectedExpiryDate == null;
                   });
@@ -219,7 +232,7 @@ class _ManuallyAddItemScreenState extends ConsumerState<ManuallyAddItemScreen> {
                   final item = InventoryItem(
                     id: DateTime.now().millisecondsSinceEpoch.toString(),
 
-                    name: _nameController.text,
+                    name: trimmedName,
 
                     quantity: int.parse(_quantityController.text),
 

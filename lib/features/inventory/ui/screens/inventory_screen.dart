@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/inventory_provider.dart';
 import '../widgets/inventory_item_card.dart';
-import '../widgets/inventory_search.dart';
 
 // Grocery Inventory Screen
 class InventoryScreen extends ConsumerWidget {
@@ -21,11 +20,6 @@ class InventoryScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: InventorySearchBar(),
-          ),
-
           const Padding(
             padding: EdgeInsets.all(5),
             child: Text('All Groceries'),
