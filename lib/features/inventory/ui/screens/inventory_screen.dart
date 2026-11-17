@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/inventory_provider.dart';
 import '../widgets/inventory_item_card.dart';
-import '../widgets/inventory_search.dart';
+// import '../widgets/inventory_search.dart';
 
 // Grocery Inventory Screen
 class InventoryScreen extends ConsumerWidget {
