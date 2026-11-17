@@ -21,10 +21,10 @@ class InventoryScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: InventorySearchBar(),
-          ),
+          // const Padding(
+          //   padding: EdgeInsets.all(12),
+          //   child: InventorySearchBar(),
+          // ),
 
           const Padding(
             padding: EdgeInsets.all(5),

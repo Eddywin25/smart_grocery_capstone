@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smart_grocery/features/inventory/data/services/expiry_est_service.dart';
 import '../../domain/models/inventory_item.dart';
-
+import 'package:flutter/services.dart';
 
 
 // Form used to capture item details for inventory
@@ -109,11 +109,15 @@ class _InventoryItemFormState
                   child: OutlinedButton(
                     onPressed: () {
                       setState(() {
-                        selectedExpiryDate = expiryService.estimateExpiry(_nameController.text);
+                        selectedExpiryDate =
+                            expiryService.estimateExpiry(
+                              _nameController.text,
+                            );
+
                         _displayExpiryField = true;
+                        _expiryError = false;
                       });
                     },
-
                     child: const Text('Estimate Expiry'),
                   ),
                 ),
@@ -135,8 +139,15 @@ class _InventoryItemFormState
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
 
-                      if (pickedDate != null) {
-                        setState(() {selectedExpiryDate = pickedDate;});
+                      if (!mounted) {
+                        return;
+                      }
+
+                      if (pickedDate != null && mounted) {
+                        setState(() {
+                          selectedExpiryDate = pickedDate;
+                          _expiryError = false;
+                        });
                       }
                     },
 
@@ -159,7 +170,10 @@ class _InventoryItemFormState
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: _expiryError ? Colors.red : Colors.grey,
+                    color: selectedExpiryDate == null &&
+                            _expiryError
+                        ? Colors.red
+                        : Colors.black,
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -173,7 +187,10 @@ class _InventoryItemFormState
                             '${selectedExpiryDate!.day}/'
                             '${selectedExpiryDate!.year}',
                   style: TextStyle(
-                    color: _expiryError ? Colors.red : Colors.grey,
+                    color: selectedExpiryDate == null &&
+                            _expiryError
+                        ? Colors.red
+                        : Colors.black,
                   ),
                 ),
               ),
@@ -185,6 +202,9 @@ class _InventoryItemFormState
             TextField(
               controller: _quantityController,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+              ],
               decoration: InputDecoration(
                 labelText: 'Quantity',
                 border: OutlineInputBorder(),
@@ -240,11 +260,12 @@ class _InventoryItemFormState
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  final quantity = int.tryParse(_quantityController.text);
+                  final quantity = int.tryParse(_quantityController.text.trim());
+                  final trimmedName = _nameController.text.trim();
 
                   // Perform validation
                   setState(() {
-                    _nameError = _nameController.text.trim().isEmpty;
+                    _nameError = trimmedName.isEmpty;
                     _quantityError = quantity == null || quantity <= 0;
                     _expiryError = selectedExpiryDate == null;
                   });
@@ -260,7 +281,7 @@ class _InventoryItemFormState
                           id: DateTime.now()
                               .millisecondsSinceEpoch
                               .toString(),
-                          name: _nameController.text,
+                          name: trimmedName,
                           quantity: quantity!,
                           location:
                               selectedLocation,

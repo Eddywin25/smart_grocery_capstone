@@ -81,10 +81,10 @@ class InventoryItem {
       final overdue = days.abs();
       return overdue == 1 ? 'Expired 1 day ago' : 'Expired $overdue days ago';
     }
-    if (daysLeft == 0) {
+    if (days == 0) {
       return "Expires today";
     }
-    if (daysLeft == 1) {
+    if (days == 1) {
       return "Expires tomorrow";
     }
     return "Expires in $days days";
