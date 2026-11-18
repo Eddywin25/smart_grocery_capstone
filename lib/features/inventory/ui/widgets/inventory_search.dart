@@ -2,15 +2,21 @@ import 'package:flutter/material.dart';
 
 // Search Bar for Grocery Inventory
 class InventorySearchBar extends StatelessWidget {
-  const InventorySearchBar({super.key});
+
+  final ValueChanged<String> onChanged;
+
+  const InventorySearchBar({
+    super.key,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
-      decoration: InputDecoration(
-        hintText: 'Search your groceries',
-        prefixIcon: const Icon(Icons.search),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      onChanged: onChanged,
+      decoration: const InputDecoration(
+        hintText: 'Search groceries',
+        prefixIcon: Icon(Icons.search),
       ),
     );
   }
