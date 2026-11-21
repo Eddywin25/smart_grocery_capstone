@@ -1,65 +1,63 @@
+import '../../domain/models/inventory_item.dart';
+import 'package:smart_grocery/features/inventory/data/repos/inventory_repo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/models/inventory_item.dart';
-
-// Create provider for grocery inventory state
 final inventoryProvider =
-    StateNotifierProvider<InventoryNotifier, List<InventoryItem>>(
-      (ref) => InventoryNotifier(),
+    NotifierProvider<
+      InventoryNotifier,
+      List<InventoryItem>
+    >(
+      InventoryNotifier.new,
     );
 
-class InventoryNotifier extends StateNotifier<List<InventoryItem>> {
-  InventoryNotifier()
-    : super([
-        // Hardcoded item used for testing
-        InventoryItem(
-          id: "1",
-          name: "Tomato",
-          quantity: 3,
-          location: StorageLocation.fridge,
-          purchaseDate: DateTime.now(),
-          expiryDate: DateTime.now().add(Duration(days: 10)),
-          packageType: Package.bag,
-        ),
-      ]);
+class InventoryNotifier
+    extends Notifier<List<InventoryItem>> {
+
+  final InventoryRepository _repository =
+      InventoryRepository();
+
+  @override
+  List<InventoryItem> build() {
+    return _repository.loadInventory();
+  }
 
   // Add an item
-  void addItem(InventoryItem item) {
-    state = [...state, item];
+  Future<void> addItem(InventoryItem item) async {
+    await _repository.addItem(item);
+    state = _repository.loadInventory();
   }
 
   // Remove an item
-  void removeItem(String id, FoodItemOutcome outcome,) {
-  state = state
-      .where((item) => item.id != id)
-      .toList();
+  Future<void> removeItem(String id, FoodItemOutcome outcome) async {
+    await _repository.deleteItem(id);
+    state = _repository.loadInventory();
   }
 
   // Update the quantity of an item
-  void updateQuantity(String id, int quantity) {
-    state = state.map((item) {
+  Future<void> updateQuantity(String id, int quantity) async {
+    final item =
+        state.firstWhere(
+          (item) => item.id == id,
+        );
 
-      if (item.id == id) {
-        return item.itemCopyUpdate(quantity: quantity);
-      }
+    final updatedItem =
+        item.itemCopyUpdate(
+          quantity: quantity,
+        );
 
-      return item;
+    await _repository.updateItem(
+      updatedItem,
+    );
 
-    }).toList();
+    state = _repository.loadInventory();
   }
 
   // Update attributes of a grocery item (used for Edit Screen)
-  void updateItem(InventoryItem updatedItem) {
-
-    state = state.map((item) {
-
-      if (item.id == updatedItem.id) {
-        return updatedItem;
-      }
-
-      return item;
-
-    }).toList();
+  Future<void> updateItem(InventoryItem updatedItem) async {
+    await _repository.updateItem(
+      updatedItem,
+    );
+    state = _repository.loadInventory();
   }
 
 }

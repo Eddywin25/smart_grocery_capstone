@@ -1,10 +1,55 @@
-// Inventory Item Model and Attributes
+import 'package:hive/hive.dart';
+part 'inventory_item.g.dart';
+
+
+// Inventory Item Model and Attributes (Interfaced with Hive)
 
 // Possible storage locations
-enum StorageLocation { fridge, freezer, pantry, counter }
+@HiveType(typeId: 1)
+enum StorageLocation { 
+  @HiveField(0)
+  fridge, 
+
+  @HiveField(1)
+  freezer, 
+
+  @HiveField(2)
+  pantry, 
+
+  @HiveField(3)
+  counter 
+}
 
 // Possible types of packaging
-enum Package { box, cup, bag, package, pouch, bottle, jug, jar, item }
+@HiveType(typeId: 2)
+enum Package { 
+  @HiveField(0)
+  box, 
+  
+  @HiveField(1)
+  cup, 
+  
+  @HiveField(2)
+  bag, 
+  
+  @HiveField(3)
+  package, 
+  
+  @HiveField(4)
+  pouch, 
+  
+  @HiveField(5)
+  bottle, 
+  
+  @HiveField(6)
+  jug, 
+  
+  @HiveField(7)
+  jar, 
+  
+  @HiveField(8)
+  item 
+}
 
 // Allows determination of singular vs plural package type
 extension PackageExtension on Package {
@@ -41,16 +86,40 @@ extension PackageExtension on Package {
 }
 
 // Possible end states of food
-enum FoodItemOutcome { finished, spoiled, deleted }
+@HiveType(typeId:3)
+enum FoodItemOutcome { 
+  @HiveField(0)
+  finished, 
+  
+  @HiveField(1)
+  spoiled, 
+  
+  @HiveField(2)
+  deleted 
+}
 
 // Grocery item and associated attributes
+@HiveType(typeId: 0)
 class InventoryItem {
+  @HiveField(0)
   final String id;
+
+  @HiveField(1)
   final String name;
+
+  @HiveField(2)
   final int quantity;
+
+  @HiveField(3)
   final StorageLocation location;
+
+  @HiveField(4)
   final DateTime purchaseDate;
+
+  @HiveField(5)
   final DateTime expiryDate;
+
+  @HiveField(6)
   final Package packageType;
 
   const InventoryItem({

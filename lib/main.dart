@@ -1,9 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-import 'shared/routing/router.dart'; // Custom navigation/routes
+import 'package:smart_grocery/shared/routing/router.dart';
+import 'package:smart_grocery/features/inventory/domain/models/inventory_item.dart';
 
-void main() {
+void main() async {
+
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Set up Hive
+  await Hive.initFlutter();
+
+  Hive.registerAdapter(
+    InventoryItemAdapter(),
+  );
+
+  Hive.registerAdapter(
+    StorageLocationAdapter(),
+  );
+
+  Hive.registerAdapter(
+    PackageAdapter(),
+  );
+
+  Hive.registerAdapter(
+    FoodItemOutcomeAdapter(),
+  );
+ 
+  await Hive.openBox<InventoryItem>(
+    'inventory',
+  );
+
+  // Run App
   runApp(const ProviderScope(child: MyApp()));
 }
 
