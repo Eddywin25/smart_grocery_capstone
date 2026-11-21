@@ -188,12 +188,16 @@ class InventoryItemCard extends ConsumerWidget {
                   const Spacer(),
 
                   // Food Status Buttons
-                  Wrap(
-                    spacing: 10,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-
-                      // Button for finishing food
-                      OutlinedButton(
+                      
+                      // Mark item as finished
+                      IconButton(
+                        icon: const Icon(
+                          Icons.check_circle,
+                        ),
+                        tooltip: 'Finished',
                         onPressed: ()  async{
                           final confirmation = 
                             await _confirmRemoval(
@@ -208,22 +212,14 @@ class InventoryItemCard extends ConsumerWidget {
                               .removeItem(item.id, FoodItemOutcome.finished);
                           }
                         },
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.green.shade100,
-                        ),
-                        child: 
-                          const Text(
-                            'Finished',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.black87, 
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
                       ),
 
-                      // Button for marking food as spoiled
-                      OutlinedButton(
+                      // Mark item as spoiled
+                      IconButton(
+                        icon: const Icon(
+                          Icons.warning_amber,
+                        ),
+                        tooltip: 'Spoiled',
                         onPressed: ()  async{
                           final confirmation = 
                             await _confirmRemoval(
@@ -238,22 +234,15 @@ class InventoryItemCard extends ConsumerWidget {
                               .removeItem(item.id, FoodItemOutcome.spoiled);
                           }
                         },
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.orangeAccent.shade100,
-                        ),
-                        child: 
-                            Text(
-                            'Spoiled',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.black87, 
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
                       ),
 
-                      // Button for deleting a food item
-                      OutlinedButton(
+
+                      // Delete item from inventory
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete,
+                        ),
+                        tooltip: 'Delete',
                         onPressed: ()  async{
                           final confirmation = 
                             await _confirmRemoval(
@@ -268,21 +257,9 @@ class InventoryItemCard extends ConsumerWidget {
                               .removeItem(item.id, FoodItemOutcome.deleted);
                           }
                         },
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.red.shade300,
-                        ),
-                        child: 
-                            Text(
-                            'Delete',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.black, 
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
                       ),
                     ],
-                  ),
+                  )
                 ],
               ),
             ],
