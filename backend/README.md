@@ -62,7 +62,7 @@ The rules then show up in the Firebase console under Firestore Database → Rule
 ## Test
 
 ```bash
-pytest          # prints "94 passed"
+pytest          # prints "20 passed"
 ruff check .    # prints "All checks passed!"
 ```
 
