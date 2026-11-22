@@ -1,21 +1,29 @@
 """The API the app calls. Firebase runs each function below as its own endpoint.
 
 These are deliberately short: each one checks who is calling, then hands off to
-barcode_lookup.py or user_data.py, where the real work happens.
+barcode_lookup.py, user_data.py, expiry.py, recipes.py or misidentifications.py,
+where the real work happens.
 
 From Flutter: FirebaseFunctions.instance.httpsCallable('lookup_barcode').call({'barcode': code})
 """
 
 import barcode_lookup
+import expiry
+import misidentifications
+import recipes
 import user_data
-from firebase_admin import firestore, initialize_app
+from firebase_admin import firestore, initialize_app, storage
 from firebase_functions import https_fn
 from firebase_functions.options import set_global_options
+from firebase_functions.params import SecretParam
 
 initialize_app()
 
 # Never run more than 10 copies at once, so a bug or traffic spike can't run up the bill
 set_global_options(max_instances=10)
+
+# Set once with: firebase functions:secrets:set SPOONACULAR_KEY
+SPOONACULAR_KEY = SecretParam("SPOONACULAR_KEY")
 
 
 def signed_in_user(req) -> str:
@@ -73,6 +81,40 @@ def delete_inventory_item(req):
     return user_data.delete_item(firestore.client(), uid, request_data(req).get("id"))
 
 
+# --- Expiry and recipes ---
+
+
+@https_fn.on_call()
+def estimate_expiry(req):
+    """Estimate an expiry date. Sends: name, location, and optionally purchaseDate, ripeness,
+    sourceId and category. Returns: expiryDate, shelfLifeDays, basis, matchedOn."""
+    signed_in_user(req)
+    return expiry.estimate_expiry(firestore.client(), request_data(req))
+
+
+@https_fn.on_call(secrets=[SPOONACULAR_KEY])
+def find_recipes(req):
+    """Suggest recipes for items expiring soon. Sends: optionally withinDays (default 3).
+    Returns: ingredients, recipes, and a message when there are none."""
+    uid = signed_in_user(req)
+    return recipes.find_recipes(
+        firestore.client(), uid, request_data(req), SPOONACULAR_KEY.value or None
+    )
+
+
+# --- Misidentified produce ---
+
+
+@https_fn.on_call()
+def report_misidentification(req):
+    """Log a scan the user corrected. Sends: image (base64), predictedLabel, correctLabel,
+    confidence, source, and optionally alternatives and modelVersion. Returns: the report id."""
+    uid = signed_in_user(req)
+    return misidentifications.report_misidentification(
+        firestore.client(), storage.bucket(), uid, request_data(req)
+    )
+
+
 # --- Account ---
 
 
@@ -93,5 +135,9 @@ def save_profile(req):
 
 @https_fn.on_call()
 def delete_account(req):
-    """Delete the user's profile, inventory and login."""
-    return user_data.delete_account(firestore.client(), signed_in_user(req))
+    """Delete the user's profile, inventory, misidentification photos and login."""
+    uid = signed_in_user(req)
+    db = firestore.client()
+    # Photos first: user_data.delete_account removes the login last, so a failure can be retried
+    misidentifications.delete_user_reports(db, storage.bucket(), uid)
+    return user_data.delete_account(db, uid)

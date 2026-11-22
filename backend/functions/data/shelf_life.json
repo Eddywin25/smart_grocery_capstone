@@ -1,0 +1,71 @@
+{
+  "about": "Days a food keeps in each storage location, used by expiry.py. Values are approximate and based on USDA FoodKeeper guidance (foodsafety.gov/keep-food-safe/foodkeeper-app), using the shorter end of each range. A location left out of an entry means USDA doesn't list it for that food.",
+
+  "aliases": {
+    "satsuma": "mandarin",
+    "clementine": "mandarin",
+    "tangerine": "mandarin",
+    "melon": "cantaloupe",
+    "capsicum": "pepper",
+    "scallion": "onion",
+    "romaine": "lettuce"
+  },
+
+  "foods": {
+    "apple":       {"counter": 21, "fridge": 30, "freezer": 240},
+    "banana":      {"counter": 5,  "fridge": 7,  "freezer": 60},
+    "orange":      {"counter": 10, "fridge": 21, "freezer": 120},
+    "lemon":       {"counter": 7,  "fridge": 21, "freezer": 120},
+    "lime":        {"counter": 7,  "fridge": 21, "freezer": 120},
+    "grapefruit":  {"counter": 7,  "fridge": 21, "freezer": 120},
+    "mandarin":    {"counter": 7,  "fridge": 14, "freezer": 120},
+    "avocado":     {"counter": 4,  "fridge": 7,  "freezer": 120},
+    "kiwi":        {"counter": 5,  "fridge": 14, "freezer": 120},
+    "mango":       {"counter": 5,  "fridge": 7,  "freezer": 180},
+    "pineapple":   {"counter": 2,  "fridge": 5,  "freezer": 180},
+    "grape":       {"counter": 2,  "fridge": 7,  "freezer": 300},
+    "cantaloupe":  {"counter": 5,  "fridge": 7,  "freezer": 240},
+    "pear":        {"counter": 5,  "fridge": 7,  "freezer": 240},
+    "peach":       {"counter": 3,  "fridge": 5,  "freezer": 240},
+    "strawberry":  {"counter": 1,  "fridge": 3,  "freezer": 240},
+    "blueberry":   {"counter": 2,  "fridge": 7,  "freezer": 240},
+
+    "tomato":      {"counter": 5,  "fridge": 7,  "freezer": 60},
+    "cucumber":    {"counter": 3,  "fridge": 7},
+    "pepper":      {"counter": 3,  "fridge": 10, "freezer": 240},
+    "broccoli":    {"fridge": 5,   "freezer": 300},
+    "cauliflower": {"fridge": 7,   "freezer": 300},
+    "carrot":      {"fridge": 21,  "freezer": 300},
+    "celery":      {"fridge": 14,  "freezer": 300},
+    "zucchini":    {"counter": 2,  "fridge": 5,  "freezer": 300},
+    "potato":      {"pantry": 30,  "counter": 14},
+    "onion":       {"pantry": 30,  "counter": 30, "fridge": 60},
+    "mushroom":    {"fridge": 5,   "freezer": 300},
+    "spinach":     {"fridge": 5,   "freezer": 300},
+    "lettuce":     {"fridge": 5},
+
+    "milk":        {"fridge": 7,   "freezer": 90},
+    "yogurt":      {"fridge": 14,  "freezer": 60},
+    "cheese":      {"fridge": 21,  "freezer": 180},
+    "butter":      {"fridge": 30,  "freezer": 180},
+    "egg":         {"fridge": 21},
+    "bread":       {"pantry": 5,   "counter": 5,  "fridge": 10, "freezer": 90},
+    "chicken":     {"fridge": 2,   "freezer": 270},
+    "beef":        {"fridge": 3,   "freezer": 240},
+    "pork":        {"fridge": 3,   "freezer": 180},
+    "fish":        {"fridge": 2,   "freezer": 180}
+  },
+
+  "categories": {
+    "Fruit":     {"pantry": 5,  "counter": 5,  "fridge": 7,  "freezer": 240},
+    "Vegetable": {"pantry": 7,  "counter": 3,  "fridge": 7,  "freezer": 240},
+    "Herb":      {"pantry": 2,  "counter": 2,  "fridge": 7,  "freezer": 120},
+    "Dairy":     {"fridge": 10, "freezer": 90},
+    "Meat":      {"fridge": 3,  "freezer": 180},
+    "Seafood":   {"fridge": 2,  "freezer": 180},
+    "Bread":     {"pantry": 5,  "counter": 5,  "fridge": 10, "freezer": 90},
+    "Beverage":  {"pantry": 30, "counter": 30, "fridge": 30, "freezer": 90},
+    "Frozen":    {"fridge": 2,  "freezer": 180},
+    "Other":     {"pantry": 30, "counter": 7,  "fridge": 7,  "freezer": 90}
+  }
+}
