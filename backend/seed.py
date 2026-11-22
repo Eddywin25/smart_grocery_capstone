@@ -13,7 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-from schema_check import validate_produce
+from schema_check import find_duplicates, validate_produce
 
 DATA_FILE = Path(__file__).parent / "data" / "produce.json"
 
@@ -32,13 +32,8 @@ def load_produce() -> list[dict]:
         for error in validate_produce(item):
             problems.append(f"{name}: {error}")
 
-    # Check that no two records share a PLU, since the PLU is the Firestore document ID
-    seen_plus = set()
-    for item in items:
-        plu = item.get("plu")
-        if plu in seen_plus:
-            problems.append(f"duplicate plu {plu}")
-        seen_plus.add(plu)
+    # Check that no two records share a PLU or name (see schema_check.py)
+    problems += find_duplicates(items)
 
     if problems:
         sys.exit("Invalid produce data:\n  " + "\n  ".join(problems))
