@@ -309,6 +309,7 @@ class _InventoryScreenState
                 ),
               )
               : ListView.builder(
+                padding: const EdgeInsets.only(bottom: 100),
                 itemCount: searchResults.length,
                 itemBuilder: (context, index) {
                   return InventoryItemCard(item: searchResults[index]);
