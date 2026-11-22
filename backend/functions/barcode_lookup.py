@@ -45,6 +45,14 @@ def clean_barcode(barcode) -> str:
     return barcode
 
 
+def lookup_unavailable() -> HttpsError:
+    """Return the error that tells the app to offer manual entry. Nothing is saved."""
+    return HttpsError(
+        FunctionsErrorCode.UNAVAILABLE,
+        "Product lookup is unavailable right now. Please enter the item by hand.",
+    )
+
+
 def fetch_from_open_food_facts(barcode: str) -> dict | None:
     """Return Open Food Facts' data for this barcode, or None if it doesn't know the product."""
     try:
@@ -58,12 +66,13 @@ def fetch_from_open_food_facts(barcode: str) -> dict | None:
             return None
         response.raise_for_status()
         answer = response.json()
-    except requests.RequestException as error:
-        # Slow or down: tell the app to offer manual entry, and save nothing
-        raise HttpsError(
-            FunctionsErrorCode.UNAVAILABLE,
-            "Product lookup is unavailable right now. Please enter the item by hand.",
-        ) from error
+    except (requests.RequestException, ValueError) as error:
+        # Slow, down, or sent a blank or HTML body instead of JSON
+        raise lookup_unavailable() from error
+
+    # Valid JSON that isn't an object (e.g. a list) is just as unusable
+    if not isinstance(answer, dict):
+        raise lookup_unavailable()
 
     if answer.get("status") != 1:
         return None

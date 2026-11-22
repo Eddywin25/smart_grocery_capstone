@@ -1,13 +1,14 @@
 """Each user's account profile and grocery inventory.
 
 Every function takes the signed-in user's ID, so people can only reach their own data.
-The fields are described in ../SCHEMA.md.
+The allowed inventory fields are listed below.
 """
 
 from datetime import UTC, datetime
 
 from firebase_admin import auth
 from firebase_functions.https_fn import FunctionsErrorCode, HttpsError
+from google.cloud.firestore import DELETE_FIELD
 
 REQUIRED_ITEM_FIELDS = [
     "name",
@@ -19,6 +20,8 @@ REQUIRED_ITEM_FIELDS = [
     "source",
 ]
 OPTIONAL_ITEM_FIELDS = ["sourceId", "ripeness", "status"]
+# Optional fields an update can remove by sending null. status always keeps a value.
+CLEARABLE_ITEM_FIELDS = ["sourceId", "ripeness"]
 DATE_FIELDS = ["purchaseDate", "expiryDate"]
 
 # Fields that must be one of a fixed list of values
@@ -37,14 +40,17 @@ def now() -> str:
 
 
 def bad_request(message: str) -> HttpsError:
+    """Return the error the app gets when it sends invalid data."""
     return HttpsError(FunctionsErrorCode.INVALID_ARGUMENT, message)
 
 
 def is_text(value) -> bool:
+    """Return True if value is text with something other than spaces in it."""
     return isinstance(value, str) and value.strip() != ""
 
 
 def is_date(value) -> bool:
+    """Return True if value is ISO 8601 date text, e.g. 2026-11-08T12:00:00."""
     if not isinstance(value, str):
         return False
     try:
@@ -83,13 +89,20 @@ def find_item_problems(fields: dict) -> list[str]:
     return problems
 
 
-def validated_fields(fields, required: list[str]) -> dict:
-    """Return the fields to save, or stop with a list of everything that's wrong."""
+def trimmed_fields(fields) -> dict:
+    """Return the fields with spaces trimmed from text, so " Milk " is saved as "Milk"."""
     if not isinstance(fields, dict):
         raise bad_request("item fields are required")
+    return {
+        field: value.strip() if isinstance(value, str) else value
+        for field, value in fields.items()
+    }
 
+
+def validated_fields(fields, required: list[str]) -> dict:
+    """Return the fields to save for a new item, or stop with everything that's wrong."""
     # The app sends null for empty optional fields; treat those as not sent
-    fields = {field: value for field, value in fields.items() if value is not None}
+    fields = {field: value for field, value in trimmed_fields(fields).items() if value is not None}
 
     problems = [f"{field} is required" for field in required if field not in fields]
     problems += find_item_problems(fields)
@@ -99,7 +112,29 @@ def validated_fields(fields, required: list[str]) -> dict:
     return fields
 
 
+def validated_changes(fields) -> tuple[dict, list[str]]:
+    """Return (fields to change, fields to remove) for an update, or stop if anything's wrong.
+
+    Sending null for sourceId or ripeness removes it. Other fields can't be removed.
+    """
+    fields = trimmed_fields(fields)
+    changes = {field: value for field, value in fields.items() if value is not None}
+    cleared = [field for field, value in fields.items() if value is None]
+
+    problems = find_item_problems(changes)
+    for field in cleared:
+        if field not in REQUIRED_ITEM_FIELDS + OPTIONAL_ITEM_FIELDS:
+            problems.append(f"unknown field {field!r}")
+        elif field not in CLEARABLE_ITEM_FIELDS:
+            problems.append(f"{field} can't be removed")
+    if problems:
+        raise bad_request("; ".join(problems))
+
+    return changes, cleared
+
+
 def inventory(db, uid: str):
+    """Return the user's inventory collection, users/{uid}/inventory."""
     return db.collection("users").document(uid).collection("inventory")
 
 
@@ -115,10 +150,12 @@ def item_document(db, uid: str, item_id):
 
 
 def list_items(db, uid: str) -> list[dict]:
+    """Return every item in the user's inventory, each with its id."""
     return [{"id": doc.id, **doc.to_dict()} for doc in inventory(db, uid).stream()]
 
 
 def add_item(db, uid: str, fields) -> dict:
+    """Save a new item (status defaults to active) and return it with its new id."""
     item = validated_fields(fields, REQUIRED_ITEM_FIELDS)
     item.setdefault("status", "active")
     item["updatedAt"] = now()
@@ -129,19 +166,29 @@ def add_item(db, uid: str, fields) -> dict:
 
 
 def update_item(db, uid: str, item_id, fields) -> dict:
-    """Change only the fields that were sent."""
-    doc = item_document(db, uid, item_id)
-    changes = validated_fields(fields, required=[])
+    """Change only the fields that were sent, and return the updated item.
 
-    if not doc.get().exists:
+    Sending null for sourceId or ripeness removes that field.
+    """
+    doc = item_document(db, uid, item_id)
+    changes, cleared = validated_changes(fields)
+
+    snapshot = doc.get()
+    if not snapshot.exists:
         raise HttpsError(FunctionsErrorCode.NOT_FOUND, "item not found")
 
     changes["updatedAt"] = now()
-    doc.update(changes)
-    return {"id": doc.id, **doc.get().to_dict()}
+    doc.update({**changes, **{field: DELETE_FIELD for field in cleared}})
+
+    # Build the result from the read above instead of reading the document again
+    item = {**snapshot.to_dict(), **changes}
+    for field in cleared:
+        item.pop(field, None)
+    return {"id": doc.id, **item}
 
 
 def delete_item(db, uid: str, item_id) -> dict:
+    """Delete one item from the user's inventory and return its id."""
     doc = item_document(db, uid, item_id)
     doc.delete()
     return {"id": doc.id}
@@ -159,6 +206,7 @@ def get_profile(db, uid: str) -> dict | None:
 
 
 def save_profile(db, uid: str, email: str | None, display_name) -> dict:
+    """Save the user's display name and email (null for anonymous users) and return them."""
     if not is_text(display_name):
         raise bad_request("displayName must be non-empty text")
 

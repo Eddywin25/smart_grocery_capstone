@@ -1,6 +1,6 @@
 # Backend
 
-Firestore, Python scripts, and the API the app calls. Schema: [SCHEMA.md](SCHEMA.md).
+Firestore, Python scripts, and the API the app calls.
 
 ## Setup
 
@@ -31,7 +31,7 @@ Every call requires a signed-in user.
 |---|---|---|
 | `lookup_barcode` | `barcode` | the product, or a record with `notFound: true` |
 | `list_inventory` | nothing | a list of the user's items |
-| `add_inventory_item` | `item` (the fields in SCHEMA.md) | the saved item with its `id` |
+| `add_inventory_item` | `item` (the fields listed in `functions/user_data.py`) | the saved item with its `id` |
 | `update_inventory_item` | `id`, `item` (only the fields to change) | the updated item |
 | `delete_inventory_item` | `id` | the `id` |
 | `get_profile` | nothing | the profile, or null if none is saved |
@@ -62,7 +62,7 @@ The rules then show up in the Firebase console under Firestore Database → Rule
 ## Test
 
 ```bash
-pytest          # prints "84 passed"
+pytest          # prints "94 passed"
 ruff check .    # prints "All checks passed!"
 ```
 

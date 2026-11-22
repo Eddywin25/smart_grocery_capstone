@@ -48,17 +48,20 @@ def off_response(body, status_code=200):
     ],
 )
 def test_clean_barcode_accepts_product_barcodes(scanned, stored):
+    """Valid barcodes are trimmed, and 12-digit UPCs get a leading zero."""
     assert clean_barcode(scanned) == stored
 
 
 @pytest.mark.parametrize("bad", ["", "abc", "123", "https://example.com", None, 3017620422003])
 def test_clean_barcode_rejects_anything_else(bad):
+    """Text, URLs, wrong lengths and non-text values are rejected."""
     with pytest.raises(HttpsError) as error:
         clean_barcode(bad)
     assert error.value.code == FunctionsErrorCode.INVALID_ARGUMENT
 
 
 def test_saved_product_does_not_call_open_food_facts():
+    """A product already in Firestore is returned without calling Open Food Facts."""
     record = {"barcode": "3017620422003", "name": "Nutella"}
     with patch("barcode_lookup.requests.get") as get:
         assert lookup_barcode(fake_db(record), "3017620422003") == record
@@ -66,6 +69,7 @@ def test_saved_product_does_not_call_open_food_facts():
 
 
 def test_saved_not_found_does_not_call_open_food_facts():
+    """A barcode already saved as notFound isn't looked up again."""
     record = {"barcode": "3017620422003", "notFound": True}
     with patch("barcode_lookup.requests.get") as get:
         assert lookup_barcode(fake_db(record), "3017620422003") == record
@@ -73,6 +77,7 @@ def test_saved_not_found_does_not_call_open_food_facts():
 
 
 def test_new_product_is_fetched_and_saved():
+    """A new barcode is fetched from Open Food Facts, cleaned up, and saved."""
     db = fake_db()
     answer = off_response({"status": 1, "product": NUTELLA})
     with patch("barcode_lookup.requests.get", return_value=answer):
@@ -86,6 +91,7 @@ def test_new_product_is_fetched_and_saved():
 
 
 def test_request_identifies_the_app_and_has_a_timeout():
+    """Requests send our User-Agent (Open Food Facts asks for one) and a 5 second timeout."""
     answer = off_response({"status": 1, "product": NUTELLA})
     with patch("barcode_lookup.requests.get", return_value=answer) as get:
         lookup_barcode(fake_db(), "3017620422003")
@@ -103,6 +109,7 @@ def test_request_identifies_the_app_and_has_a_timeout():
     ],
 )
 def test_unknown_product_is_saved_as_not_found(answer):
+    """Unknown products (status 0, 404, or no name) are saved as notFound."""
     db = fake_db()
     with patch("barcode_lookup.requests.get", return_value=answer):
         record = lookup_barcode(db, "3017620422003")
@@ -121,8 +128,24 @@ def test_unknown_product_is_saved_as_not_found(answer):
     ],
 )
 def test_outage_tells_the_app_and_saves_nothing(failure):
+    """Timeouts, connection errors, 429s and 500s return unavailable and save nothing."""
     db = fake_db()
     with patch("barcode_lookup.requests.get", **failure), pytest.raises(HttpsError) as error:
+        lookup_barcode(db, "3017620422003")
+
+    assert error.value.code == FunctionsErrorCode.UNAVAILABLE
+    saved_product(db).set.assert_not_called()
+
+
+@pytest.mark.parametrize("body", [b"", b"<html>Down for maintenance</html>", b"[]"])
+def test_unusable_response_tells_the_app_and_saves_nothing(body):
+    """A blank, HTML, or non-object body returns unavailable instead of a 500."""
+    answer = requests.Response()
+    answer.status_code = 200
+    answer._content = body
+    db = fake_db()
+
+    with patch("barcode_lookup.requests.get", return_value=answer), pytest.raises(HttpsError) as error:
         lookup_barcode(db, "3017620422003")
 
     assert error.value.code == FunctionsErrorCode.UNAVAILABLE
@@ -139,4 +162,5 @@ def test_outage_tells_the_app_and_saves_nothing(failure):
     ],
 )
 def test_estimate_shelf_life(tags, expected):
+    """Category tags map to a shelf life, frozen wins over dairy, and unknown tags use the default."""
     assert estimate_shelf_life(tags) == expected
