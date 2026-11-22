@@ -9,7 +9,8 @@
 //     writes the database. If no rule allows the request, it's blocked.
 //   - Editing this file does nothing on its own. Changes only take effect after
 //     you deploy them with: firebase deploy --only firestore:rules
-//   - seed.py uses the admin key, which skips these rules entirely.
+//   - seed.py and the API in backend/functions use admin access, which skips
+//     these rules entirely.
 // =============================================================================
 
 rules_version = '2';
@@ -34,9 +35,11 @@ service cloud.firestore {
     }
 
     // Rule 3: each user's own data (their inventory, etc.)
-    // A user can read and write only their own folder, never anyone else's.
+    // A user can read only their own folder, never anyone else's. Changes go
+    // through the API in backend/functions, which checks the data first.
     match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
     }
 
   }
