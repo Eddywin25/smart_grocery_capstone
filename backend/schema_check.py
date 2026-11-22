@@ -1,7 +1,7 @@
 """Checks that produce records have the right fields before they go into Firestore.
 
 Firestore stores whatever it's given, so this is what catches typos and missing fields.
-The fields are described in SCHEMA.md. seed.py runs these checks on data/produce.json
+The allowed fields and values are listed below. seed.py runs these checks on data/produce.json
 before uploading, and the tests in tests/test_produce_data.py make sure the checks work.
 """
 

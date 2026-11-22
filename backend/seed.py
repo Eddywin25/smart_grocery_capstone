@@ -64,6 +64,7 @@ def upload(items: list[dict], key_path: str) -> None:
 
 
 def main() -> None:
+    """Check produce.json, then upload it unless --dry-run was given."""
     parser = argparse.ArgumentParser(description="Upload data/produce.json to Firestore.")
     parser.add_argument("--key", default="service-account.json",
                         help="path to the Firebase service account key")
