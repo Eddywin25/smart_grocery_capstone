@@ -4,7 +4,7 @@
 # pytest (runs the tests)
 [tool.pytest.ini_options]
 pythonpath = [".", "functions"]         # lets tests import the code in these folders
-testpaths = ["tests", "functions/tests"]  # where to look for test files
+testpaths = ["tests"]                   # where to look for test files
 
 # ruff (the linter)
 [tool.ruff]
