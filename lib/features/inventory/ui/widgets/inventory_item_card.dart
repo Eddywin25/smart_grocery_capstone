@@ -187,76 +187,105 @@ class InventoryItemCard extends ConsumerWidget {
                   // Separate Quantity Update field and Food Status Buttons
                   const Spacer(),
 
-                  // Food Status Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      
-                      // Mark item as finished
-                      IconButton(
-                        icon: const Icon(
-                          Icons.check_circle,
-                        ),
-                        tooltip: 'Finished',
-                        onPressed: ()  async{
-                          final confirmation = 
-                            await _confirmRemoval(
-                            context, 
-                            "Finished Item", 
-                            "Mark ${item.displayItemName} as finished?"
+                  // Popup menu with options for removing food item
+                  PopupMenuButton<FoodItemOutcome>(
+
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          SizedBox(width: 4),
+                          Text('Remove Item'),
+                          Icon(Icons.arrow_drop_down),
+                        ],
+                      ),
+                    ),
+
+
+                    onSelected: (outcome) async {
+
+                      // Set removal option and confirmation messages for user
+                      String removalOption;
+                      String removalMessage;
+
+                      switch (outcome) {
+
+                        case FoodItemOutcome.finished:
+                          removalOption = 'Finished Item';
+                          removalMessage =
+                              'Remove this item because it was consumed?';
+                          break;
+
+                        case FoodItemOutcome.spoiled:
+                          removalOption = 'Spoiled Item';
+                          removalMessage =
+                              'Remove this item because it spoiled?';
+                          break;
+
+                        case FoodItemOutcome.deleted:
+                          removalOption = 'Delete Item';
+                          removalMessage =
+                              'Remove this item from inventory?';
+                          break;
+                      }
+
+                      final confirmation =
+                          await _confirmRemoval(
+                            context,
+                            removalOption,
+                            removalMessage,
                           );
 
-                          if (confirmation == true) {
-                            ref
-                              .read(inventoryProvider.notifier)
-                              .removeItem(item.id, FoodItemOutcome.finished);
-                          }
-                        },
+                      if (confirmation == true) {
+                        ref
+                          .read(
+                            inventoryProvider.notifier,
+                          )
+                          .removeItem(
+                            item.id,
+                            outcome,
+                          );
+                      }
+                    },
+
+                    // Display removal options and associated icons
+                    itemBuilder: (context) => [
+
+                      const PopupMenuItem(
+                        value: FoodItemOutcome.finished,
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle),
+                            SizedBox(width: 8),
+                            Text('Finished'),
+                          ],
+                        ),
                       ),
 
-                      // Mark item as spoiled
-                      IconButton(
-                        icon: const Icon(
-                          Icons.warning_amber,
+                      const PopupMenuItem(
+                        value: FoodItemOutcome.spoiled,
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_amber),
+                            SizedBox(width: 8),
+                            Text('Spoiled'),
+                          ],
                         ),
-                        tooltip: 'Spoiled',
-                        onPressed: ()  async{
-                          final confirmation = 
-                            await _confirmRemoval(
-                            context, 
-                            "Spoiled Item", 
-                            "Mark ${item.displayItemName} as spoiled?"
-                          );
-
-                          if (confirmation == true) {
-                            ref
-                              .read(inventoryProvider.notifier)
-                              .removeItem(item.id, FoodItemOutcome.spoiled);
-                          }
-                        },
                       ),
 
-
-                      // Delete item from inventory
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete,
+                      const PopupMenuItem(
+                        value: FoodItemOutcome.deleted,
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete),
+                            SizedBox(width: 8),
+                            Text('Delete'),
+                          ],
                         ),
-                        tooltip: 'Delete',
-                        onPressed: ()  async{
-                          final confirmation = 
-                            await _confirmRemoval(
-                            context, 
-                            "Delete Item", 
-                            "Delete ${item.displayItemName}?"
-                          );
-
-                          if (confirmation == true) {
-                            ref
-                              .read(inventoryProvider.notifier)
-                              .removeItem(item.id, FoodItemOutcome.deleted);
-                          }
-                        },
                       ),
                     ],
                   )
@@ -288,7 +317,7 @@ class _DateInfoDisplay extends StatelessWidget {
       padding: const EdgeInsets.all(12),
 
       decoration: BoxDecoration(
-        color: Colors.grey.shade300, // Color.fromRGBO(235, 235, 255, 0.8),
+        color: Colors.grey.shade300,
 
         borderRadius:
             BorderRadius.circular(8),
