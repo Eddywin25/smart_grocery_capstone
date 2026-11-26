@@ -344,44 +344,53 @@ class _DashboardScreenState
             ),
 
             child: 
-
-              // List all items approaching expiry and days until expiry
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: shownExpiringItems.length,
-                itemBuilder: (context, index) {
-                  final item = shownExpiringItems[index];
-
-                  return ListTile(
-                    title: Text(
-                      item.displayItemName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
+              expiringItems.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        'No items are expiring within $maxExpiringItemsShown days!',
                       ),
                     ),
+                  )
+                :
+                // List all items approaching expiry and days until expiry
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: shownExpiringItems.length,
+                  itemBuilder: (context, index) {
+                    final item = shownExpiringItems[index];
 
-                    subtitle: Text(
-                      '${item.displayQuantPackage} in '
-                      '${item.displayItemLocation}',
-                    ),
-
-                    trailing: Text(
-                      item.expiryTime,
+                    return ListTile(
+                      title: Text(
+                        item.displayItemName,
                         style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      )
-                    ),
-                  );
-                },
-
-                separatorBuilder:
-                    (context, index) =>
-                        const Divider(
-                          height: 1,
+                          fontWeight: FontWeight.w600,
                         ),
-              ),
+                      ),
+
+                      subtitle: Text(
+                        '${item.displayQuantPackage} in '
+                        '${item.displayItemLocation}',
+                      ),
+
+                      trailing: Text(
+                        item.expiryTime,
+                          style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        )
+                      ),
+                    );
+                  },
+
+                  separatorBuilder:
+                      (context, index) =>
+                          const Divider(
+                            height: 1,
+                          ),
+                ),
           ),
 
           // Space
@@ -397,145 +406,237 @@ class _DashboardScreenState
             ),
           ),
 
-          Card(
-            child: Padding(
-              padding:
-                  const EdgeInsets.all(16),
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: 400,
+            ),
 
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+            child: Container(
+              decoration: BoxDecoration(
+              color: Colors.white,
 
-                children: [
+              borderRadius:
+                BorderRadius.circular(24),
 
-                  const Text(
-                    'Most Consumed',
-                    style: TextStyle(
-                      fontWeight:
-                          FontWeight.bold,
+              border: Border.all(
+                color: Colors.grey.shade300,
+                width: 3,
+              ),
+              ),
+
+              child: Padding(
+                padding:
+                    const EdgeInsets.all(16),
+
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+
+                  children: [
+
+                    const Text(
+                      'Most Consumed',
+                      style: TextStyle(
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(
-                    height: 12,
-                  ),
+                    const SizedBox(
+                      height: 12,
+                    ),
 
-                  ...mostConsumed
-                      .take(3)
-                      .map(
-                    (food) {
+                    if (mostConsumed.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(16),
 
-                      return ListTile(
-                        dense: true,
-
-                        title: Text(
-                          food.key,
+                        child: Text(
+                          'No consumption history yet.\n\n'
+                          'Food items will populate here'
+                          ' as they are finished.'
                         ),
+                      )
+                    else
+                      ...mostConsumed
+                          .take(3)
+                          .map(
+                        (food) {
 
-                        trailing: Text(
-                          '${food.value}',
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                          return ListTile(
+                            dense: true,
+
+                            title: Text(
+                              food.key,
+                            ),
+
+                            trailing: Text(
+                              '${food.value}',
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
 
-          Card(
-            child: Padding(
-              padding:
-                  const EdgeInsets.all(16),
+          const SizedBox(height: 6),
 
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-
-                children: [
-
-                  const Text(
-                    'Most Spoiled',
-                    style: TextStyle(
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 12,
-                  ),
-
-                  ...mostSpoiled
-                      .take(3)
-                      .map(
-                    (food) {
-
-                      return ListTile(
-                        dense: true,
-
-                        title: Text(
-                          food.key,
-                        ),
-
-                        trailing: Text(
-                          '${food.value}',
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: 400,
             ),
-          ),
 
-          Card(
-            child: Padding(
-              padding:
-                  const EdgeInsets.all(16),
+            child: 
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
 
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                  borderRadius:
+                      BorderRadius.circular(24),
 
-                children: [
-
-                  const Text(
-                    'Most Unused',
-                    style: TextStyle(
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                    width: 3,
                   ),
+                ),
+            
+                child: Padding(
+                  padding:
+                      const EdgeInsets.all(16),
 
-                  const SizedBox(
-                    height: 12,
-                  ),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
 
-                  ...mostDiscarded
-                      .take(3)
-                      .map(
-                    (food) {
+                    children: [
 
-                      return ListTile(
-                        dense: true,
-
-                        title: Text(
-                          food.key,
+                      const Text(
+                        'Most Spoiled',
+                        style: TextStyle(
+                          fontWeight:
+                              FontWeight.bold,
                         ),
+                      ),
 
-                        trailing: Text(
-                          '${food.value}',
+                      const SizedBox(
+                        height: 12,
+                      ),
+
+                      if (mostSpoiled.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+
+                          child: Text(
+                            'No spoiled food history yet.\n\n'
+                            'Spoiled food items will populate here\n'
+                            'as they are marked as spoiled.'
+                          ),
+                        )
+                      else
+                        ...mostSpoiled
+                            .take(3)
+                            .map(
+                          (food) {
+
+                            return ListTile(
+                              dense: true,
+
+                              title: Text(
+                                food.key,
+                              ),
+
+                              trailing: Text(
+                                '${food.value}',
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
           ),
+      
+
+          const SizedBox(height: 6),
 
 
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: 400,
+            ),
+
+            child: 
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+
+                  borderRadius:
+                      BorderRadius.circular(24),
+
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                    width: 3,
+                  ),
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.all(16),
+
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+
+                    children: [
+
+                      const Text(
+                        'Most Unused',
+                        style: TextStyle(
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 12,
+                      ),
+
+                      if (mostDiscarded.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+
+                          child: Text(
+                            'No unused food history yet.\n\n'
+                            'Unused food items will populate here\n'
+                            'as they are deleted from inventory'
+                          ),
+                        )
+                      else
+                        ...mostDiscarded
+                            .take(3)
+                            .map(
+                          (food) {
+
+                            return ListTile(
+                              dense: true,
+
+                              title: Text(
+                                food.key,
+                              ),
+
+                              trailing: Text(
+                                '${food.value}',
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          ),
         ],
       ),
     ),
