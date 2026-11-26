@@ -40,7 +40,7 @@ class InventoryNotifier
     final item = state.firstWhere((item) => item.id == id);
 
     // Create removal event record
-    final event = FoodRemovalEvent(itemName: item.name, outcome: outcome, eventDate: DateTime.now());
+    final event = FoodRemovalEvent(itemName: item.name, outcome: outcome, eventDate: DateTime.now(), quantity: item.quantity, packageType:item.packageType);
 
     // Save the removal event in history
     await _foodHistoryRepository.addEvent(event);

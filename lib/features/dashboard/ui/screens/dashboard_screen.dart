@@ -19,64 +19,133 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 // Class used to manage dashboard screen state
 class _DashboardScreenState
-    extends ConsumerState<DashboardScreen> {
+  extends ConsumerState<DashboardScreen> {
 
-    static const int maxExpiringItemsShown = 3;
+  static const int maxExpiringItemsShown = 3;
 
-    bool _showAllExpiringItems = false;
+  bool _showAllExpiringItems = false;
 
-    @override
-    Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
 
-    final inventory = ref.watch(inventoryProvider); // Grocery inventory
+  final inventory = ref.watch(inventoryProvider); // Grocery inventory
 
-    final totalInventoryCount = inventory.length;   // Number of groceries in inventory
+  final totalInventoryCount = inventory.length;   // Number of groceries in inventory
 
-    // Items approaching expiry
-    final expiringItems =
-    inventory.where(
-      (item) => item.expiresSoon,
-    ).toList();
+  // Items approaching expiry
+  final expiringItems =
+  inventory.where(
+    (item) => item.expiresSoon,
+  ).toList();
 
-    // Sort items
-    expiringItems.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
+  // Sort items
+  expiringItems.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
 
-    // Show abreviated list of expiring items, or show
-    final shownExpiringItems =
-      _showAllExpiringItems
-          ? expiringItems
-          : expiringItems
-              .take(maxExpiringItemsShown)
-              .toList();
+  // Show abreviated list of expiring items, or show
+  final shownExpiringItems =
+    _showAllExpiringItems
+        ? expiringItems
+        : expiringItems
+            .take(maxExpiringItemsShown)
+            .toList();
 
-    // Number of groceries expiring soon
-    final expiringSoonCount = expiringItems.length;
-
-
-    // Percentage of groceries that aren't expiring soon
-    final percentFresh =
-    totalInventoryCount == 0
-        ? 100
-        : (((totalInventoryCount -
-                expiringSoonCount) /
-            totalInventoryCount) *
-          100).round();
-
-    // Load history repository
-    final foodHistory =
-      FoodHistoryRepository()
-        .loadHistory();
-
-    // Number of groceries that have been spoiled
-    final spoiledCount =
-      foodHistory.where(
-        (event) =>
-            event.outcome ==
-            FoodItemOutcome.spoiled,
-      ).length;
+  // Number of groceries expiring soon
+  final expiringSoonCount = expiringItems.length;
 
 
-return Scaffold(
+  // Percentage of groceries that aren't expiring soon
+  final percentFresh =
+  totalInventoryCount == 0
+      ? 100
+      : (((totalInventoryCount -
+              expiringSoonCount) /
+          totalInventoryCount) *
+        100).round();
+
+  // Load history repository
+  final foodHistory =
+    FoodHistoryRepository()
+      .loadHistory();
+
+  // Traverse through food history and determine consumed/finished items
+  final Map<String, int>
+      consumedFoods = {};
+
+  for (final event in foodHistory) {
+
+    if (
+      event.outcome ==
+      FoodItemOutcome.finished
+    ) {
+
+      consumedFoods.update(
+        event.itemName,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+  }
+
+  // Create a list of consumed items
+  final mostConsumed = consumedFoods.entries.toList();
+
+  // Sort the list of consumed items to determine most consumed
+  mostConsumed.sort((a, b) => b.value.compareTo(a.value));
+
+
+  // Traverse through food history and determine spoiled food items
+  final Map<String, int>
+      spoiledFoods = {};
+
+  for (final event in foodHistory) {
+
+    if (
+      event.outcome ==
+      FoodItemOutcome.spoiled
+    ) {
+
+      spoiledFoods.update(
+        event.itemName,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+  }
+
+  // Create a list of spoiled items
+  final mostSpoiled = spoiledFoods.entries.toList();
+
+  // Sort the list of spoiled items to determine most consumed
+  mostSpoiled.sort((a, b) => b.value.compareTo(a.value));
+
+
+  // Traverse through food history and determine discarded food items
+  final Map<String, int>
+      discardedFoods = {};
+
+  for (final event in foodHistory) {
+
+    if (
+      event.outcome ==
+      FoodItemOutcome.deleted
+    ) {
+
+      discardedFoods.update(
+        event.itemName,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+  }
+
+  // Create a list of discarded items
+  final mostDiscarded = discardedFoods.entries.toList();
+
+  // Sort the list of discarded items to determine most consumed
+  mostDiscarded.sort((a, b) => b.value.compareTo(a.value));
+
+
+  return Scaffold(
     appBar: AppBar(
       title: const Text(
         'Grocery Dashboard',
@@ -320,13 +389,153 @@ return Scaffold(
 
           // Heading for Inventory Insights
           const Text(
-            'Inventory Insights',
+            'Food Insights',
             style: TextStyle(
               fontSize: 20,
               fontWeight:
                   FontWeight.bold,
             ),
           ),
+
+          Card(
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(16),
+
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                children: [
+
+                  const Text(
+                    'Most Consumed',
+                    style: TextStyle(
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 12,
+                  ),
+
+                  ...mostConsumed
+                      .take(3)
+                      .map(
+                    (food) {
+
+                      return ListTile(
+                        dense: true,
+
+                        title: Text(
+                          food.key,
+                        ),
+
+                        trailing: Text(
+                          '${food.value}',
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          Card(
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(16),
+
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                children: [
+
+                  const Text(
+                    'Most Spoiled',
+                    style: TextStyle(
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 12,
+                  ),
+
+                  ...mostSpoiled
+                      .take(3)
+                      .map(
+                    (food) {
+
+                      return ListTile(
+                        dense: true,
+
+                        title: Text(
+                          food.key,
+                        ),
+
+                        trailing: Text(
+                          '${food.value}',
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          Card(
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(16),
+
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                children: [
+
+                  const Text(
+                    'Most Unused',
+                    style: TextStyle(
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 12,
+                  ),
+
+                  ...mostDiscarded
+                      .take(3)
+                      .map(
+                    (food) {
+
+                      return ListTile(
+                        dense: true,
+
+                        title: Text(
+                          food.key,
+                        ),
+
+                        trailing: Text(
+                          '${food.value}',
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+
         ],
       ),
     ),

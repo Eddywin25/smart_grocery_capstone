@@ -14,10 +14,18 @@ class FoodRemovalEvent {
 
   @HiveField(2)
   final DateTime eventDate;
+  
+  @HiveField(3)
+  final int quantity;
+
+  @HiveField(4)
+  final Package packageType;
 
   const FoodRemovalEvent({
     required this.itemName,
     required this.outcome,
     required this.eventDate,
+    required this.quantity,
+    required this.packageType,
   });
 }

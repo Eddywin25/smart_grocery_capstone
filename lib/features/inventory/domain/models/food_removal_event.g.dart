@@ -20,19 +20,25 @@ class FoodRemovalEventAdapter extends TypeAdapter<FoodRemovalEvent> {
       itemName: fields[0] as String,
       outcome: fields[1] as FoodItemOutcome,
       eventDate: fields[2] as DateTime,
+      quantity: fields[3] as int,
+      packageType: fields[4] as Package,
     );
   }
 
   @override
   void write(BinaryWriter writer, FoodRemovalEvent obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.itemName)
       ..writeByte(1)
       ..write(obj.outcome)
       ..writeByte(2)
-      ..write(obj.eventDate);
+      ..write(obj.eventDate)
+      ..writeByte(3)
+      ..write(obj.quantity)
+      ..writeByte(4)
+      ..write(obj.packageType);
   }
 
   @override
