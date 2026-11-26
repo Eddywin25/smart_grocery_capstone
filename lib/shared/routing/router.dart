@@ -7,6 +7,7 @@ import '../../features/add_item/ui/screens/add_item_screen.dart';
 import '../../features/add_item/ui/screens/manually_add_item_screen.dart';
 import '../../features/add_item/ui/screens/barcode_scan_screen.dart';
 import '../../features/add_item/ui/screens/food_recognition_screen.dart';
+import 'package:smart_grocery/features/dashboard/ui/screens/dashboard_screen.dart';
 
 // Router used for app navigation
 final router = GoRouter(
@@ -20,30 +21,35 @@ final router = GoRouter(
         return const InventoryScreen();
       },
     ),
+    
     GoRoute(
       path: '/add-item',
       builder: (context, state) {
         return const AddItemScreen();
       },
     ),
+
     GoRoute(
       path: '/manual-add-item',
       builder: (context, state) {
         return const ManuallyAddItemScreen();
       },
     ),
+
     GoRoute(
       path: '/barcode-scan-add-item',
       builder: (context, state) {
         return const BarcodeScanScreen();
       },
     ),
+
     GoRoute(
       path: '/ai-add-item',
       builder: (context, state) {
         return const FoodRecognitionScreen();
       },
     ),
+
     GoRoute(
       path: '/edit-item',
       builder: (context, state) {
@@ -54,5 +60,13 @@ final router = GoRouter(
         );
       },
     ),
+
+    GoRoute(
+    path: '/dashboard',
+    builder: (context, state) {
+        return const DashboardScreen();
+      },
+    ),
+
   ],
 );

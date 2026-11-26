@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:smart_grocery/shared/routing/router.dart';
 import 'package:smart_grocery/features/inventory/domain/models/inventory_item.dart';
+import 'package:smart_grocery/features/inventory/domain/models/food_removal_event.dart';  // added
 
 void main() async {
 
@@ -27,9 +28,17 @@ void main() async {
   Hive.registerAdapter(
     FoodItemOutcomeAdapter(),
   );
+
+  Hive.registerAdapter(
+    FoodRemovalEventAdapter(),
+  );
  
   await Hive.openBox<InventoryItem>(
     'inventory',
+  );
+
+  await Hive.openBox<FoodRemovalEvent>(
+    'food_history',
   );
 
   // Run App

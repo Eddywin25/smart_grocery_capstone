@@ -23,3 +23,19 @@ extension StringDisplayUtility on String {
         .join(' ');
   }
 }
+
+// Extension utility for determining grammar based on quantity of items
+extension GrammerCount on int {
+
+  String itemReference() {
+    return this == 1
+        ? 'item'
+        : 'items';
+  }
+
+  String needReference() {
+    return this == 1
+        ? 'needs'
+        : 'need';
+  }
+}

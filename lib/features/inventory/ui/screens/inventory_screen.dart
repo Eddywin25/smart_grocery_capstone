@@ -85,7 +85,26 @@ class _InventoryScreenState
 
     // Establish page layout
     return Scaffold(
-      appBar: AppBar(title: const Text('Grocery Inventory')),
+      // App Bar temporarily set to allow navigation to dashboard
+      appBar: AppBar(
+        title: const Text(
+          'Grocery Inventory',
+        ),
+
+        actions: [
+          IconButton(
+            onPressed: () {
+              context.push(
+                '/dashboard',
+              );
+            },
+
+            icon: const Icon(
+              Icons.dashboard,
+            ),
+          ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
